@@ -198,10 +198,13 @@ class TestPyGhidraLiveIntegration(unittest.TestCase):
                 return name.lstrip("_")
 
             names = {plain(f["name"]) for f in facts["functions"]}
-            for expected in ("main", "file_io_operations", "network_operations", "process_execution"):
+            for expected in ("file_io_operations", "network_operations", "process_execution"):
                 self.assertIn(expected, names)
 
-            main = next(f for f in facts["functions"] if plain(f["name"]) == "main")
+            # Ghidra labels the Mach-O LC_MAIN function `entry` instead of `_main`.
+            main_name = "main" if "main" in names else "entry"
+            self.assertIn(main_name, names)
+            main = next(f for f in facts["functions"] if plain(f["name"]) == main_name)
             self.assertTrue(main["callsites"])
             self.assertIn("file_io_operations", {plain(c["to"]) for c in main["callsites"]})
             self.assertTrue(facts["program"]["language_id"])
