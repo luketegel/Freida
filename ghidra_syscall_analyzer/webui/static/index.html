@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Freida Malware Analysis</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <h1>Freida <span>Malware Analysis</span></h1>
+    <div id="env-status" class="env-status"></div>
+  </header>
+
+  <main class="layout">
+    <section class="panel" id="setup">
+      <form id="analyze-form" autocomplete="off">
+        <h2>1. Program</h2>
+        <label class="dropzone" id="dropzone">
+          <input type="file" id="file" name="file">
+          <span id="drop-label">Drop an executable here or <u>browse</u><br><small>ELF, PE or Mach-O</small></span>
+        </label>
+        <button type="button" class="link" id="use-sample" hidden>Use the bundled sample binary</button>
+
+        <h2>2. Options</h2>
+        <fieldset>
+          <legend>Backend</legend>
+          <div class="segmented" role="radiogroup">
+            <label><input type="radio" name="backend" value="pyghidra" checked> PyGhidra</label>
+            <label><input type="radio" name="backend" value="mcp"> Ghidra MCP</label>
+            <label><input type="radio" name="backend" value="mock"> Mock (no Ghidra)</label>
+          </div>
+          <p class="hint" data-backend="pyghidra">Runs Ghidra headless in-process. Needs Ghidra and PyGhidra installed.</p>
+          <p class="hint" data-backend="mcp" hidden>Drives a Ghidra MCP server: give a launch command or the URL of a running server.</p>
+          <p class="hint" data-backend="mock" hidden>Simulated decompilation to try the reports without Ghidra. Uses sample code, not your file's contents.</p>
+
+          <div data-backend="pyghidra mcp">
+            <label>Ghidra install directory
+              <input type="text" name="ghidra_dir" id="ghidra_dir" placeholder="GHIDRA_INSTALL_DIR">
+            </label>
+          </div>
+          <div data-backend="mcp" hidden>
+            <label>MCP server URL
+              <input type="text" name="server_url" placeholder="http://127.0.0.1:8081">
+            </label>
+            <label>or MCP launch command <small>({binary} is replaced with the file)</small>
+              <input type="text" name="mcp_cmd" placeholder="uvx ... ghidra-mcp --headless --binary {binary}">
+            </label>
+          </div>
+          <div class="grid" data-backend="pyghidra mcp">
+            <label>Max functions
+              <input type="number" name="max_functions" min="1" placeholder="all">
+            </label>
+            <label>Decompile timeout (s)
+              <input type="number" name="decompile_timeout" min="1" max="3600" value="60">
+            </label>
+            <label>Request timeout (s)
+              <input type="number" name="timeout" min="1" max="3600" value="120">
+            </label>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Output</legend>
+          <label class="check"><input type="checkbox" name="pdf" checked> Write PDF reports</label>
+          <label class="check"><input type="checkbox" name="verbose"> Verbose log</label>
+        </fieldset>
+
+        <fieldset id="ai-fieldset">
+          <legend>AI behavioral overview (Gemini)</legend>
+          <label class="check"><input type="checkbox" name="ai" id="ai"> Generate an AI report after the analysis</label>
+          <div id="ai-options" hidden>
+            <label class="check"><input type="checkbox" name="ai_dry_run"> Only estimate the cost (dry run)</label>
+            <div class="grid">
+              <label>Model <input type="text" name="model" id="model"></label>
+              <label>Thinking <select name="thinking" id="thinking"></select></label>
+              <label>Max tool calls <input type="number" name="max_tool_calls" id="max_tool_calls" min="0" max="20"></label>
+              <label>Max cost (USD) <input type="number" name="max_cost" id="max_cost" min="0" max="100" step="0.05"></label>
+            </div>
+            <label>Gemini API key <small id="key-hint"></small>
+              <input type="password" name="gemini_key" id="gemini_key" placeholder="AIza..." autocomplete="off">
+            </label>
+            <p class="hint">The key is used for this run only and is not saved.</p>
+          </div>
+          <p class="hint" id="ai-mock-note" hidden>Not available with the mock backend.</p>
+        </fieldset>
+
+        <p class="form-error" id="form-error" role="alert"></p>
+        <button type="submit" class="primary" id="submit">Analyze</button>
+      </form>
+
+      <h2 class="history-title">History</h2>
+      <ul id="history" class="history"></ul>
+    </section>
+
+    <section class="panel results" id="results">
+      <div id="empty" class="empty">
+        <p>Upload a program and press <b>Analyze</b>. Results show up here.</p>
+      </div>
+      <div id="job" hidden>
+        <div class="job-head">
+          <div>
+            <h2 id="job-title"></h2>
+            <div id="job-meta" class="meta"></div>
+          </div>
+          <div class="job-actions">
+            <span id="job-status" class="badge"></span>
+            <button type="button" id="cancel" hidden>Cancel</button>
+            <button type="button" id="delete" class="danger">Delete</button>
+          </div>
+        </div>
+        <ol id="steps" class="steps"></ol>
+        <p id="job-error" class="form-error"></p>
+        <nav class="tabs" id="tabs" role="tablist"></nav>
+        <div id="tab-body" class="tab-body"></div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
