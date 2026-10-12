@@ -18,17 +18,17 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
-from ghidra_syscall_analyzer.binary_insights import (
+from freida.binary_insights import (
     callers_by_function,
     classify_origins,
     extract_indicators,
     hardening,
 )
-from ghidra_syscall_analyzer.mcp_client import GhidraMCPClient, MCPError
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding, SyscallDetector
+from freida.mcp_client import GhidraMCPClient, MCPError
+from freida.pyghidra_collector import PyGhidraCollector
+from freida.syscall_detector import SyscallFinding, SyscallDetector
 
-logger = logging.getLogger("ghidra_syscall_analyzer.orchestrator")
+logger = logging.getLogger("freida.orchestrator")
 
 TARGET_INFO_DEFAULT: Dict[str, Any] = {
     "path": "",

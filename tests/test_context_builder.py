@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.context_builder import ContextLimits, build_context, build_facts, write_context
-from ghidra_syscall_analyzer.syscall_detector import SyscallDetector
+from freida.context_builder import ContextLimits, build_context, build_facts, write_context
+from freida.syscall_detector import SyscallDetector
 
 
 def make_facts(num_helpers: int = 3, num_strings: int = 5) -> dict:

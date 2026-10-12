@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.cli import main
+from freida.cli import main
 
 
 class TestEndToEnd(unittest.TestCase):

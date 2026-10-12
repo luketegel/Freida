@@ -7,8 +7,8 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from ghidra_syscall_analyzer.pdf_report import PdfReportGenerator, assess_syscalls, write_overview_pdf
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
+from freida.pdf_report import PdfReportGenerator, assess_syscalls, write_overview_pdf
+from freida.syscall_detector import SyscallFinding
 from tests.agent_fixtures import SAMPLE_OVERVIEW
 
 METADATA = {

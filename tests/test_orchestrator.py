@@ -6,11 +6,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.context_builder import build_context, build_facts
-from ghidra_syscall_analyzer.orchestrator import DEFAULT_MCP_PACKAGE, HeadlessOrchestrator
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
+from freida.context_builder import build_context, build_facts
+from freida.orchestrator import DEFAULT_MCP_PACKAGE, HeadlessOrchestrator
+from freida.pyghidra_collector import PyGhidraCollector
 
-SAMPLE_BINARY = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples" / "sample_binary"
+SAMPLE_BINARY = Path(__file__).resolve().parent.parent / "freida" / "samples" / "sample_binary"
 
 
 class TestHeadlessOrchestrator(unittest.TestCase):
@@ -54,14 +54,14 @@ class TestHeadlessOrchestrator(unittest.TestCase):
 
     def test_default_cmd_prefers_uvx(self) -> None:
         paths = {"uvx": "/bin/uvx", "uv": "/bin/uv"}
-        with patch("ghidra_syscall_analyzer.orchestrator.shutil.which", side_effect=paths.get):
+        with patch("freida.orchestrator.shutil.which", side_effect=paths.get):
             cmd = HeadlessOrchestrator(self.target).build_mcp_command()
         self.assertEqual(cmd[0], "/bin/uvx")
         self.assertIn(DEFAULT_MCP_PACKAGE, cmd)
 
     def test_default_cmd_uses_uv_tool_run_without_uvx(self) -> None:
         paths = {"uv": "/bin/uv"}
-        with patch("ghidra_syscall_analyzer.orchestrator.shutil.which", side_effect=paths.get):
+        with patch("freida.orchestrator.shutil.which", side_effect=paths.get):
             cmd = HeadlessOrchestrator(self.target).build_mcp_command()
         self.assertEqual(cmd[:3], ["/bin/uv", "tool", "run"])
 

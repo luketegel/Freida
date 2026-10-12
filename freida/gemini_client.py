@@ -16,7 +16,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
 
-logger = logging.getLogger("ghidra_syscall_analyzer.gemini_client")
+logger = logging.getLogger("freida.gemini_client")
 
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 RETRY_STATUSES = {429, 500, 503}

@@ -3,7 +3,7 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ghidra-syscall-analyzer"
+name = "freida"
 version = "1.0.0"
 description = "Decompile native executables with headless Ghidra and extract system calls into Markdown and PDF reports and model context"
 readme = "README.md"
@@ -29,13 +29,14 @@ dev = [
 ]
 
 [project.scripts]
-ghidra-syscall-analyzer = "ghidra_syscall_analyzer.cli:main"
-freida-report = "ghidra_syscall_analyzer.report_agent:main"
-freida-web = "ghidra_syscall_analyzer.webui.server:main"
+freida = "freida.cli:main"
+ghidra-syscall-analyzer = "freida.cli:main"  # Original command name, kept as an alias.
+freida-report = "freida.report_agent:main"
+freida-web = "freida.webui.server:main"
 
 # Package only the analyzer, not other folders in the checkout (e.g. freida_web_jobs/, tests/).
 [tool.setuptools.packages.find]
-include = ["ghidra_syscall_analyzer*"]
+include = ["freida", "freida.*"]
 
 [tool.setuptools.package-data]
-ghidra_syscall_analyzer = ["webui/static/*"]
+freida = ["webui/static/*", "samples/*"]

@@ -11,7 +11,7 @@ import collections
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
+from freida.syscall_detector import SyscallFinding
 
 BACKEND_LABELS = {
     "pyghidra": "Ghidra Headless (No GUI) | PyGhidra in-process",

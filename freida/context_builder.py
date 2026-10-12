@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Union
 
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
+from freida.syscall_detector import SyscallFinding
 
 SCHEMA_VERSION = 2
 FACTS_SCHEMA_VERSION = 1

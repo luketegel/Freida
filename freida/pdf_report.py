@@ -29,8 +29,8 @@ from reportlab.platypus import (
 )
 from reportlab.platypus.flowables import Flowable, HRFlowable
 
-from ghidra_syscall_analyzer.report_generator import BACKEND_LABELS
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
+from freida.report_generator import BACKEND_LABELS
+from freida.syscall_detector import SyscallFinding
 
 PAGE_SIZE = A4
 MARGIN = 18 * mm

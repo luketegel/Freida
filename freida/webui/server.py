@@ -32,7 +32,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 from urllib.parse import parse_qs, unquote, urlparse
 
-from ghidra_syscall_analyzer.report_agent import (
+from freida.report_agent import (
     DEFAULT_MAX_COST,
     DEFAULT_MAX_TOOL_CALLS,
     DEFAULT_MODEL,
@@ -40,7 +40,7 @@ from ghidra_syscall_analyzer.report_agent import (
     THINKING_LEVELS,
 )
 
-logger = logging.getLogger("ghidra_syscall_analyzer.webui")
+logger = logging.getLogger("freida.webui")
 
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -134,7 +134,7 @@ def parse_options(params: Dict[str, str]) -> Dict[str, Any]:
 def analysis_command(options: Dict[str, Any], binary: Path, out_dir: Path, stem: str) -> List[str]:
     """Builds the analyzer CLI invocation for a job."""
     cmd = [
-        sys.executable, "-m", "ghidra_syscall_analyzer.cli", str(binary),
+        sys.executable, "-m", "freida.cli", str(binary),
         "-o", str(out_dir / f"{stem}_syscalls.md"),
         "--context-out", str(out_dir / f"{stem}_context.json"),
         "--facts-out", str(out_dir / f"{stem}_facts.json"),
@@ -163,7 +163,7 @@ def analysis_command(options: Dict[str, Any], binary: Path, out_dir: Path, stem:
 def report_command(options: Dict[str, Any], out_dir: Path, stem: str) -> List[str]:
     """Builds the `freida-report` invocation for a job."""
     cmd = [
-        sys.executable, "-m", "ghidra_syscall_analyzer.report_agent", str(out_dir / f"{stem}_context.json"),
+        sys.executable, "-m", "freida.report_agent", str(out_dir / f"{stem}_context.json"),
         "--model", options["model"],
         "--max-tool-calls", str(options["max_tool_calls"]),
         "--thinking", options["thinking"],

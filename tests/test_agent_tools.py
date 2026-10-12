@@ -3,7 +3,7 @@
 import json
 import unittest
 
-from ghidra_syscall_analyzer.agent_tools import FUNCTION_DECLARATIONS, FactsIndex, cap_result, normalize_address
+from freida.agent_tools import FUNCTION_DECLARATIONS, FactsIndex, cap_result, normalize_address
 from tests.agent_fixtures import sample_documents
 
 

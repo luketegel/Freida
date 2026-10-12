@@ -13,16 +13,16 @@ import sys
 from pathlib import Path
 from typing import Optional, Tuple
 
-from ghidra_syscall_analyzer.context_builder import build_context, build_facts, write_context, write_facts
-from ghidra_syscall_analyzer.orchestrator import BACKENDS, HeadlessOrchestrator
-from ghidra_syscall_analyzer.report_generator import MarkdownReportGenerator
-from ghidra_syscall_analyzer.syscall_detector import SyscallDetector, SyscallFinding
+from freida.context_builder import build_context, build_facts, write_context, write_facts
+from freida.orchestrator import BACKENDS, HeadlessOrchestrator
+from freida.report_generator import MarkdownReportGenerator
+from freida.syscall_detector import SyscallDetector, SyscallFinding
 
 # Fixed names so `freida-report` finds the latest analysis without arguments.
 DEFAULT_CONTEXT_FILE = Path("binary_context.json")
 DEFAULT_FACTS_FILE = Path("binary_facts.json")
 
-logger = logging.getLogger("ghidra_syscall_analyzer")
+logger = logging.getLogger("freida")
 
 
 def setup_logging(verbose: bool = False) -> None:
@@ -42,7 +42,7 @@ def write_pdf_report(
     if pdf_path is None:
         return None
     try:
-        from ghidra_syscall_analyzer.pdf_report import PdfReportGenerator
+        from freida.pdf_report import PdfReportGenerator
     except ImportError:
         logger.warning("reportlab is not installed; skipping the PDF report (pip install reportlab).")
         return None
@@ -120,7 +120,7 @@ def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Optional[P
 
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
-        prog="ghidra-syscall-analyzer",
+        prog="freida",
         description="Decompiles a native executable with headless Ghidra and reports all system calls in Markdown.",
     )
     parser.add_argument(

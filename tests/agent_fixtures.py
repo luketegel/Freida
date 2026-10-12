@@ -4,12 +4,12 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from ghidra_syscall_analyzer.context_builder import build_context, build_facts
-from ghidra_syscall_analyzer.orchestrator import HeadlessOrchestrator
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
+from freida.context_builder import build_context, build_facts
+from freida.orchestrator import HeadlessOrchestrator
+from freida.pyghidra_collector import PyGhidraCollector
 
 ROOT = Path(__file__).resolve().parent.parent
-SAMPLE_BINARY = ROOT / "ghidra_syscall_analyzer" / "samples" / "sample_binary"
+SAMPLE_BINARY = ROOT / "freida" / "samples" / "sample_binary"
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "ghidra12_macos_arm64_sample_binary.json"
 
 

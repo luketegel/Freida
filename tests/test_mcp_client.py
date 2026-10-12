@@ -7,7 +7,7 @@ import time
 import unittest
 from unittest.mock import MagicMock, patch
 
-from ghidra_syscall_analyzer.mcp_client import GhidraMCPClient, MCPError
+from freida.mcp_client import GhidraMCPClient, MCPError
 
 
 class TestGhidraMCPClient(unittest.TestCase):

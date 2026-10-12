@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import urllib.request
 import urllib.error
 
-logger = logging.getLogger("ghidra_syscall_analyzer.mcp_client")
+logger = logging.getLogger("freida.mcp_client")
 
 
 class MCPError(Exception):

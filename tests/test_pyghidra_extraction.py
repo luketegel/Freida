@@ -3,7 +3,7 @@
 import unittest
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector, UsedTypeCollector
+from freida.pyghidra_collector import PyGhidraCollector, UsedTypeCollector
 
 
 class _JavaIterator:

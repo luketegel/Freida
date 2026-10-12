@@ -19,9 +19,9 @@ import warnings
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Set, Union
 
-from ghidra_syscall_analyzer.binary_insights import shannon_entropy
+from freida.binary_insights import shannon_entropy
 
-logger = logging.getLogger("ghidra_syscall_analyzer.pyghidra_collector")
+logger = logging.getLogger("freida.pyghidra_collector")
 
 MAX_XREFS_PER_ITEM = 50
 MAX_VALUE_PREVIEW = 120

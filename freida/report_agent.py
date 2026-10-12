@@ -6,7 +6,7 @@ structured Behavioral Overview. Every run reports its estimated cost up
 front and its actual cost afterwards.
 
 Usage (after `analyze_syscalls.py <binary>` wrote binary_context.json and binary_facts.json):
-    python -m ghidra_syscall_analyzer.report_agent [--dry-run]
+    python -m freida.report_agent [--dry-run]
 """
 
 from __future__ import annotations
@@ -19,8 +19,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from ghidra_syscall_analyzer.agent_tools import FUNCTION_DECLARATIONS, FactsIndex
-from ghidra_syscall_analyzer.gemini_client import (
+from freida.agent_tools import FUNCTION_DECLARATIONS, FactsIndex
+from freida.gemini_client import (
     GeminiClient,
     GeminiError,
     ModelPricing,
@@ -29,7 +29,7 @@ from ghidra_syscall_analyzer.gemini_client import (
     usage_cost,
 )
 
-logger = logging.getLogger("ghidra_syscall_analyzer.report_agent")
+logger = logging.getLogger("freida.report_agent")
 
 DEFAULT_MODEL = "gemini-3.6-flash"
 DEFAULT_MAX_TOOL_CALLS = 3
@@ -436,7 +436,7 @@ def _sibling(context_path: Path, suffix: str) -> Path:
 def write_pdf(output: Dict[str, Any], target: Dict[str, Any], pdf_path: Path) -> Optional[Path]:
     """Writes the PDF version of the overview; returns None when reportlab is missing."""
     try:
-        from ghidra_syscall_analyzer.pdf_report import write_overview_pdf
+        from freida.pdf_report import write_overview_pdf
     except ImportError:
         logger.warning("reportlab is not installed; skipping the PDF report (pip install reportlab).")
         return None

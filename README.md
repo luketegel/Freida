@@ -136,7 +136,7 @@ python3 analyze_syscalls.py /path/to/target_binary \
 ### Dry-Run / Validation Mode (Testing without Ghidra)
 To test the analysis pipeline, syscall detection rules, and report formatting without requiring a live Ghidra installation:
 ```bash
-python3 analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary \
+python3 analyze_syscalls.py freida/samples/sample_binary \
     --mock-dry-run \
     -o sample_binary_syscalls.md
 ```
@@ -223,7 +223,7 @@ uv pip install -e .
 rehash
 ```
 
-(`python3 -m pip install -e .` works too.) Without installing, the same tool runs as `python -m ghidra_syscall_analyzer.report_agent`.
+(`python3 -m pip install -e .` works too.) Without installing, the same tool runs as `python -m freida.report_agent`.
 
 ### 2. Gemini API key
 
@@ -285,7 +285,7 @@ Each run prints an **estimated cost** before generating (exact input size via Ge
 
 | Binary | Context | No tool calls | 3 tool calls (worst case) |
 | :--- | :--- | :--- | :--- |
-| `ghidra_syscall_analyzer/samples/sample_binary` | ~8.5k tokens | ~$0.035 | ~$0.12 |
+| `freida/samples/sample_binary` | ~8.5k tokens | ~$0.035 | ~$0.12 |
 | Typical program (100–500 functions) | ~50k tokens | ~$0.10 | ~$0.38 |
 | Large program (context at its caps) | ~120k tokens | ~$0.20 | ~$0.80 |
 
@@ -346,7 +346,7 @@ An empty list means the model answered from the context alone. If it regularly u
 
 | Message | Fix |
 | :--- | :--- |
-| `zsh: command not found: freida-report` | Install the package (step 1), or use `python -m ghidra_syscall_analyzer.report_agent`. |
+| `zsh: command not found: freida-report` | Install the package (step 1), or use `python -m freida.report_agent`. |
 | `No Gemini API key found` | Set `GEMINI_API_KEY` in this terminal (step 2). |
 | `binary_context.json not found` | Run `python analyze_syscalls.py /path/to/binary` first, in the same folder. |
 | `Worst-case estimate … exceeds --max-cost` | See *When the cost guard stops a run* above. |
@@ -368,7 +368,7 @@ export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
 freida-web --open
 ```
 
-It prints `Freida web UI running at http://localhost:8765/`; `--open` opens it in your browser. Without installing, run `python -m ghidra_syscall_analyzer.webui.server`. Press `Ctrl+C` to stop.
+It prints `Freida web UI running at http://localhost:8765/`; `--open` opens it in your browser. Without installing, run `python -m freida.webui.server`. Press `Ctrl+C` to stop.
 
 In the page:
 

@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.binary_insights import (
+from freida.binary_insights import (
     callers_by_function,
     classify_origins,
     extract_indicators,
@@ -16,7 +16,7 @@ from ghidra_syscall_analyzer.binary_insights import (
     shannon_entropy,
 )
 
-SAMPLES = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples"
+SAMPLES = Path(__file__).resolve().parent.parent / "freida" / "samples"
 
 
 class TestEntropy(unittest.TestCase):
