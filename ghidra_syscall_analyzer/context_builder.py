@@ -45,7 +45,8 @@ class ContextLimits:
 
 
 def _short_name(qualified: str) -> str:
-    return qualified.replace("::", ".").split(".")[-1]
+    # Mach-O symbols carry a leading underscore (`_main`).
+    return qualified.replace("::", ".").split(".")[-1].lstrip("_")
 
 
 def build_context(
