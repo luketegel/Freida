@@ -1,4 +1,4 @@
-"""PDF Report Generator for Ghidra Syscall Analyzer.
+"""PDF Report Generator for Freida.
 
 Renders the same results as the Markdown reports (the syscall analysis
 report and the Behavioral Overview) as clean, printable PDF documents.
@@ -307,7 +307,7 @@ def _build(path: Union[str, Path], title: str, footer_label: str, story: List[An
 
     doc = SimpleDocTemplate(
         str(out_file), pagesize=PAGE_SIZE, leftMargin=MARGIN, rightMargin=MARGIN,
-        topMargin=MARGIN, bottomMargin=MARGIN, title=title, author="Freida (Ghidra Syscall Analyzer)",
+        topMargin=MARGIN, bottomMargin=MARGIN, title=title, author="Freida",
     )
     doc.build(story, onFirstPage=decorate, onLaterPages=decorate)
     return out_file
@@ -515,7 +515,7 @@ class PdfReportGenerator:
         ]
         return [
             Paragraph("Methodology &amp; Tooling", STYLES["h1"]),
-            Paragraph("This report was generated using <b>Ghidra Syscall Analyzer</b> in full <b>Headless Mode</b>:",
+            Paragraph("This report was generated using <b>Freida</b> in full <b>Headless Mode</b>:",
                       STYLES["body"]),
             *[Paragraph(b, STYLES["bullet"], bulletText="•") for b in bullets],
         ]

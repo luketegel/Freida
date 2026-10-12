@@ -19,6 +19,8 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import urllib.request
 import urllib.error
 
+from freida import __version__
+
 logger = logging.getLogger("freida.mcp_client")
 
 
@@ -226,8 +228,8 @@ class GhidraMCPClient:
                 "sampling": {},
             },
             "clientInfo": {
-                "name": "ghidra-syscall-analyzer",
-                "version": "1.0.0",
+                "name": "freida",
+                "version": __version__,
             },
         }
 

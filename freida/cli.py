@@ -1,7 +1,8 @@
-"""Command-Line Interface for Ghidra Syscall Analyzer.
+"""Command-line interface for Freida (`freida`).
 
-Enables automated, headless decompilation of native executables
-via Ghidra MCP to extract system calls into Markdown reports.
+Decompiles a native executable with headless Ghidra (in-process via PyGhidra
+by default, or through a Ghidra MCP server), extracts its system calls into
+Markdown and PDF reports, and writes the model context and facts JSON.
 """
 
 from __future__ import annotations
@@ -121,7 +122,7 @@ def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Optional[P
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="freida",
-        description="Decompiles a native executable with headless Ghidra and reports all system calls in Markdown.",
+        description="Freida: decompile a native executable with headless Ghidra and report its system calls (Markdown + PDF).",
     )
     parser.add_argument(
         "target",

@@ -1,4 +1,4 @@
-"""Markdown Report Generator for Ghidra Syscall Analyzer.
+"""Markdown Report Generator for Freida.
 
 Produces comprehensive, GitHub-flavored Markdown reports detailing
 detected system calls, category distributions, severity evaluations,
@@ -265,7 +265,7 @@ class MarkdownReportGenerator:
             )
         return f"""## ⚙️ Methodology & Tooling
 
-This report was generated using **Ghidra Syscall Analyzer** operating in full **Headless Mode**:
+This report was generated using **Freida** operating in full **Headless Mode**:
 {engine}
 - **Headless Execution:** Fully automated headless analysis without requiring the Ghidra graphical user interface (GUI).
 - **Detection Scope:** Covers direct assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), POSIX / libc system call wrappers, Windows Native NT and Win32 system APIs, and macOS Mach traps in native executables (ELF, PE, Mach-O)."""

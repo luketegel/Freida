@@ -1,8 +1,9 @@
-"""Ghidra Syscall Analyzer package.
+"""Freida: static malware triage for native executables.
 
-A tool to decompile native executables using headless Ghidra
-and detect all system calls, generating a comprehensive Markdown report.
+Decompiles ELF, PE and Mach-O binaries with headless Ghidra, detects every
+system call, and writes Markdown and PDF reports, a model context bundle,
+and an optional AI Behavioral Overview. A local web UI wraps the whole flow.
 """
 
 __version__ = "1.0.0"
-__author__ = "Ghidra Syscall Analyzer Team"
+__author__ = "The Freida Team"

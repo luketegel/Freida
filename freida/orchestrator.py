@@ -1,8 +1,9 @@
-"""Orchestrator for Ghidra MCP Headless Analysis.
+"""Orchestrator for headless Ghidra analysis.
 
-Manages binary ingestion, environment detection, launching the headless
-Ghidra MCP server, driving decompilation across functions, detecting
-system calls, and delegating report generation.
+Manages binary ingestion and environment detection, starts the analysis
+backend (PyGhidra in-process by default, or a headless Ghidra MCP server),
+drives decompilation across functions, detects system calls, and derives
+the insights that feed the reports and model context.
 """
 
 from __future__ import annotations
@@ -85,7 +86,7 @@ def detect_file_type(file_path: Path) -> str:
 
 
 class HeadlessOrchestrator:
-    """Drives the headless Ghidra MCP analysis workflow."""
+    """Drives the headless Ghidra analysis workflow (PyGhidra or MCP backend)."""
 
     def __init__(
         self,
@@ -202,7 +203,7 @@ class HeadlessOrchestrator:
         return cmd
 
     def run_analysis(self) -> Tuple[Dict[str, Any], List[SyscallFinding]]:
-        """Executes the complete headless Ghidra MCP analysis workflow."""
+        """Executes the complete headless Ghidra analysis workflow."""
         self.collect_target_metadata()
         logger.info("Beginning analysis on target: %s (%s)", self.target_path.name, self.metadata["file_type"])
 
@@ -264,7 +265,7 @@ class HeadlessOrchestrator:
         return info
 
     def _analyze_via_client(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> None:
-        """Queries the connected Ghidra MCP client for program info, imports, and decompilation."""
+        """Queries the Ghidra backend (PyGhidra or MCP) for program info, imports, and decompilation."""
         # 1. Retrieve Program Information
         prog_info = client.get_program_info()
         if prog_info:
