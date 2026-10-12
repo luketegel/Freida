@@ -299,17 +299,32 @@ class PyGhidraCollector:
         }
 
     def _extract_strings(self, program: Any, source_name: str) -> List[Dict[str, Any]]:
-        from ghidra.program.util import DefinedDataIterator  # type: ignore[import-not-found]
-
-        strings = []
-        for data in _iter_java(DefinedDataIterator.definedStrings(program)):
-            if len(strings) >= self.max_strings:
-                break
-            value = data.getValue()
-            if value is None:
-                continue
-            strings.append({"address": str(data.getAddress()), "value": str(value), "program": source_name})
+        """Collects defined strings; strings are supporting context, so failures are not fatal."""
+        strings: List[Dict[str, Any]] = []
+        try:
+            for data in self._iter_defined_strings(program):
+                if len(strings) >= self.max_strings:
+                    break
+                value = data.getValue()
+                if value is None:
+                    continue
+                strings.append({"address": str(data.getAddress()), "value": str(value), "program": source_name})
+        except Exception as e:
+            logger.warning("Could not extract strings from %s: %s", source_name, e)
         return strings
+
+    @staticmethod
+    def _iter_defined_strings(program: Any) -> Iterable[Any]:
+        try:
+            # Ghidra 11+; DefinedDataIterator.definedStrings() no longer exists in Ghidra 12.
+            from ghidra.program.util import DefinedStringIterator  # type: ignore[import-not-found]
+        except ImportError:
+            return (
+                data
+                for data in _iter_java(program.getListing().getDefinedData(True))
+                if data.hasStringValue()
+            )
+        return _iter_java(DefinedStringIterator.forProgram(program))
 
     def _merge(self, per_program: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Merges per-program facts; a JAR yields one program per class file."""

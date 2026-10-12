@@ -86,6 +86,21 @@ cd Freida
 python3 -m pip install -e '.[ghidra]'
 ```
 
+### macOS Setup (Apple Silicon)
+- **Do not use Apple's built-in Python** (`/usr/bin/python3`). Its code signing blocks the JVM's JIT compiler, and `pyghidra.start()` crashes with `SIGBUS` in `CodeHeap::allocate`. Use a uv-managed or Homebrew Python instead:
+  ```bash
+  uv venv --python 3.12 --python-preference only-managed .venv
+  source .venv/bin/activate
+  ```
+- **Homebrew Ghidra** (`brew install ghidra`) lives under `libexec`, and needs JDK 21 even if another Java is your default:
+  ```bash
+  export GHIDRA_INSTALL_DIR="$(brew --prefix ghidra)/libexec"
+  export JAVA_HOME="$(brew --prefix openjdk@21)/libexec/openjdk.jdk/Contents/Home"
+  uv pip install "$GHIDRA_INSTALL_DIR"/Ghidra/Features/PyGhidra/pypkg/dist/pyghidra-*.whl
+  uv pip install -e .
+  python -c "import pyghidra; pyghidra.start(); print('ok')"
+  ```
+
 ---
 
 ## 💻 Usage
