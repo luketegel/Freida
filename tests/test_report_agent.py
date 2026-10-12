@@ -208,6 +208,9 @@ class TestCli(AgentTestCase):
             self.assertEqual(data["unverified_evidence"], 1)
             self.assertEqual(data["estimate"]["input_tokens"], 8500)
             self.assertIn("Actual cost: $", out.getvalue())
+            pdf = Path(tmp) / "sample_binary_overview.pdf"
+            self.assertTrue(pdf.read_bytes().startswith(b"%PDF"))
+            self.assertIn(str(pdf.resolve()), out.getvalue())
 
     def test_defaults_to_binary_context_and_facts_in_current_folder(self) -> None:
         transport = ScriptedTransport([{"totalTokens": 8500}, text_response(SAMPLE_OVERVIEW)])
@@ -224,6 +227,7 @@ class TestCli(AgentTestCase):
                 self.assertEqual(code, 0)
                 self.assertTrue(Path(tmp, "binary_overview.md").exists())
                 self.assertTrue(Path(tmp, "binary_overview.json").exists())
+                self.assertTrue(Path(tmp, "binary_overview.pdf").exists())
                 self.assertIn("up to 3 tool call(s)", out.getvalue())  # facts found, so tools are enabled
             finally:
                 os.chdir(previous)

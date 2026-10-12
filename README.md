@@ -1,6 +1,6 @@
 # 🛡️ Ghidra Syscall Analyzer (Headless MCP)
 
-A robust Python-based security tool that takes in a **native executable** (ELF, PE, Mach-O), decompiles it with **headless Ghidra** (strictly no GUI), analyzes all functions and imported symbols for **system calls**, and generates a structured, GitHub-flavored **Markdown report** plus a **model context bundle** (JSON) for AI-driven analysis.
+A robust Python-based security tool that takes in a **native executable** (ELF, PE, Mach-O), decompiles it with **headless Ghidra** (strictly no GUI), analyzes all functions and imported symbols for **system calls**, and generates a structured, GitHub-flavored **Markdown report** and a matching **PDF report**, plus a **model context bundle** (JSON) for AI-driven analysis.
 
 Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** server is the exploration path: the context bundle tells a model how to launch it so it can query the binary in more detail.
 
@@ -24,6 +24,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
   * **Windows NT Native Syscalls & Win32:** Detects `Nt*` / `Zw*` native system calls (`NtCreateFile`, `NtAllocateVirtualMemory`, `NtCreateThreadEx`) and Win32 wrappers (`CreateProcess`, `VirtualAllocEx`, `WriteProcessMemory`).
   * **macOS Mach Traps:** Recognizes Mach kernel messages and traps (`mach_msg_trap`, `vm_allocate`, `task_for_pid`); Mach-O's leading underscores (`_open`) are handled.
 * **Rich Markdown Reporting:** Outputs an executive-ready Markdown report complete with target metadata, cryptographic hashes, visual category distribution bars, severity categorization, callsite inventory tables, and decompiled code evidence snippets.
+* **Clean PDF Reports:** Every Markdown report (the syscall report and the AI Behavioral Overview) is also written as a printable PDF with severity colors, distribution bars, paginated tables and code listings, ready to share with people who don't read Markdown.
 
 ---
 
@@ -56,14 +57,15 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 |            v                                                                  |
 |  +--------------------+                                                       |
 |  |  ReportGenerator   | ==> Formats Dashboard, Inventory & Code Evidence     |
+|  |  PdfReportGenerator| ==> Same report as a printable PDF                   |
 |  |  ContextBuilder    | ==> Model-ready JSON bundle                          |
 |  +---------+----------+                                                       |
 +------------|------------------------------------------------------------------+
              |
              v
    +--------------------+   +----------------------+
-   |   Markdown Report  |   | Model Context Bundle |
-   | (*_syscalls.md)    |   | (binary_context.json)|
+   | Markdown + PDF     |   | Model Context Bundle |
+   | (*_syscalls.md/pdf)|   | (binary_context.json)|
    +--------------------+   +----------------------+
 ```
 
@@ -106,11 +108,12 @@ python3 -m pip install -e '.[ghidra]'
 ## 💻 Usage
 
 ### Basic Command (PyGhidra backend)
-Analyze a binary, writing the Markdown report and the model context bundle:
+Analyze a binary, writing the Markdown and PDF reports and the model context bundle:
 ```bash
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
 python3 analyze_syscalls.py /path/to/target_binary -o report.md --context-out context.json --facts-out facts.json
 ```
+This writes `report.md` and `report.pdf` (the PDF goes next to the Markdown file with a `.pdf` suffix; change it with `--pdf-out`, or skip it with `--no-pdf`).
 
 ### Running with Headless Ghidra MCP via `uvx`
 To let `uvx` run the headless `ghidra-mcp` server in the background:
@@ -146,6 +149,8 @@ python3 analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary \
 | `target` | Path to the executable (ELF, PE, Mach-O). |
 | `-b, --binary` | Explicit flag to specify the target path. |
 | `-o, --output` | Output Markdown report file path (default: `<target>_syscalls.md`). |
+| `--pdf-out` | Output PDF report path (default: the Markdown path with a `.pdf` suffix, e.g. `<target>_syscalls.pdf`). |
+| `--no-pdf` | Do not write the PDF report. |
 | `--context-out` | Output model context JSON path (default: `binary_context.json`). |
 | `--facts-out` | Output full, uncapped facts JSON path (default: `binary_facts.json`). |
 | `--backend` | `pyghidra` (default) or `mcp` (implied by `--mcp-cmd` / `--server-url`). |
@@ -171,6 +176,8 @@ Each report contains:
 4. **Security & Behavioral Impact Observations:** High-level narrative flags for suspicious capabilities (e.g., shell spawns, RWX page modifications, remote socket connections).
 5. **System Calls Inventory Table:** Every call site mapped with function name, address, line number, detection type, arguments, and severity.
 6. **Decompiled Evidence & Callsite Context:** Syntax-highlighted code blocks with line annotations and expandable full decompiled function bodies.
+
+The PDF report (`*_syscalls.pdf`) has the same sections, laid out for print: colored severity labels, drawn distribution bars, an inventory table that repeats its header across pages, and code listings (the first 40 lines of each function, long lines wrapped).
 
 ## 🤖 Model Context and Facts
 
@@ -253,9 +260,9 @@ freida-report
 
 1. `analyze_syscalls.py` runs Ghidra and writes `binary_context.json` and `binary_facts.json` in the current folder, whatever the binary is called.
 2. `freida-report --dry-run` prints the estimated cost and stops (optional; it costs nothing). The estimate says *counted by Gemini* when the key works.
-3. `freida-report` prints the estimate again, generates the report, writes `binary_overview.md` (the report) and `binary_overview.json` (structured result, per-request usage and cost, tool-call trace), and prints the **actual cost**.
+3. `freida-report` prints the estimate again, generates the report, writes `binary_overview.md` (the report), `binary_overview.pdf` (the same report as a PDF) and `binary_overview.json` (structured result, per-request usage and cost, tool-call trace), and prints the **actual cost**.
 
-Each analysis overwrites the `binary_*` files. To keep several, name them: `python analyze_syscalls.py /path/to/mybin --context-out mybin_context.json --facts-out mybin_facts.json`, then `freida-report mybin_context.json`, which picks up `mybin_facts.json` and writes `mybin_overview.md`.
+Each analysis overwrites the `binary_*` files. To keep several, name them: `python analyze_syscalls.py /path/to/mybin --context-out mybin_context.json --facts-out mybin_facts.json`, then `freida-report mybin_context.json`, which picks up `mybin_facts.json` and writes `mybin_overview.md` and `mybin_overview.pdf`.
 
 A successful run looks like:
 
@@ -265,6 +272,7 @@ A successful run looks like:
 [+] Behavioral overview written to:
     /path/to/binary_overview.md
     /path/to/binary_overview.json
+    /path/to/binary_overview.pdf
 [+] Actual cost: $0.0... (N request(s), N tool call(s), ... tokens incl. ... thinking)
 ```
 
@@ -324,6 +332,7 @@ An empty list means the model answered from the context alone. If it regularly u
 | `context` | Context JSON to report on (default: `binary_context.json`). Pass another path to report on a saved analysis. |
 | `--facts` | Facts JSON for the lookup tools (default: the matching `*_facts.json`, e.g. `binary_facts.json`; without it the model gets no tools). |
 | `-o, --output` / `--json-out` | Report Markdown / JSON paths (default: `binary_overview.md` / `binary_overview.json`). |
+| `--pdf-out` / `--no-pdf` | PDF report path (default: `binary_overview.pdf`) / skip the PDF. |
 | `--model` | Gemini model (default `gemini-3.6-flash`). |
 | `--max-tool-calls` | Lookup tool budget per run (default `3`). |
 | `--thinking` | `minimal`, `low` (default), `medium`, `high`; higher levels cost more output tokens. |
@@ -351,6 +360,7 @@ An empty list means the model answered from the context alone. If it regularly u
 
 Run the comprehensive unit test suite:
 ```bash
+python3 -m pip install -e '.[dev]'
 python3 -m unittest discover tests
 ```
 The live Ghidra integration test runs only when `GHIDRA_INSTALL_DIR` is set (it compiles `samples/sample_binary.c` with `gcc`).

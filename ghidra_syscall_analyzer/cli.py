@@ -11,7 +11,7 @@ import logging
 import os
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Tuple
 
 from ghidra_syscall_analyzer.context_builder import build_context, build_facts, write_context, write_facts
 from ghidra_syscall_analyzer.orchestrator import BACKENDS, HeadlessOrchestrator
@@ -32,7 +32,24 @@ def setup_logging(verbose: bool = False) -> None:
     logging.basicConfig(level=level, format=fmt, datefmt="%H:%M:%S")
 
 
-def run_mock_analysis(target_path: Path, output_file: Path) -> Path:
+def write_pdf_report(
+    metadata: dict,
+    findings: list[SyscallFinding],
+    decompiled_functions: dict,
+    pdf_path: Optional[Path],
+) -> Optional[Path]:
+    """Writes the PDF version of the report; returns None when disabled or reportlab is missing."""
+    if pdf_path is None:
+        return None
+    try:
+        from ghidra_syscall_analyzer.pdf_report import PdfReportGenerator
+    except ImportError:
+        logger.warning("reportlab is not installed; skipping the PDF report (pip install reportlab).")
+        return None
+    return PdfReportGenerator(metadata, findings, decompiled_functions).write_to_file(pdf_path)
+
+
+def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Optional[Path] = None) -> Tuple[Path, Optional[Path]]:
     """Runs a simulated analysis session with sample decompilations for testing/validation."""
     logger.info("Executing mock validation analysis on: %s", target_path.name)
     metadata = {
@@ -97,7 +114,8 @@ def run_mock_analysis(target_path: Path, output_file: Path) -> Path:
     )
     written_path = report_gen.write_to_file(output_file)
     logger.info("Mock analysis report successfully written to: %s", written_path)
-    return written_path
+    pdf_path = write_pdf_report(metadata, findings, decompiled_samples, pdf_file)
+    return written_path, pdf_path
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -123,6 +141,16 @@ def main(argv: Optional[list[str]] = None) -> int:
         "--output",
         type=Path,
         help="Path to output Markdown file (default: <target_name>_syscalls.md).",
+    )
+    parser.add_argument(
+        "--pdf-out",
+        type=Path,
+        help="Path to output PDF report (default: the Markdown path with a .pdf suffix).",
+    )
+    parser.add_argument(
+        "--no-pdf",
+        action="store_true",
+        help="Do not write the PDF report.",
     )
     parser.add_argument(
         "--context-out",
@@ -210,10 +238,14 @@ def main(argv: Optional[list[str]] = None) -> int:
     output_path = args.output or Path(f"{target_path.stem}_syscalls.md")
     context_path = args.context_out or DEFAULT_CONTEXT_FILE
     facts_path = args.facts_out or DEFAULT_FACTS_FILE
+    pdf_path = None if args.no_pdf else (args.pdf_out or output_path.with_suffix(".pdf"))
 
     if args.mock_dry_run:
-        written_path = run_mock_analysis(target_path, output_path)
-        print(f"\n[+] Analysis complete! Syscall report written to:\n    {written_path}\n")
+        written_path, pdf_written = run_mock_analysis(target_path, output_path, pdf_path)
+        print(f"\n[+] Analysis complete! Syscall report written to:\n    {written_path}")
+        if pdf_written:
+            print(f"    {pdf_written}")
+        print()
         return 0
 
     try:
@@ -237,6 +269,7 @@ def main(argv: Optional[list[str]] = None) -> int:
             decompiled_functions=orchestrator.decompiled_functions,
         )
         written_path = report_generator.write_to_file(output_path)
+        pdf_written = write_pdf_report(metadata, findings, orchestrator.decompiled_functions, pdf_path)
         facts_written = write_facts(
             build_facts(metadata, orchestrator.facts, findings, exploration=orchestrator.exploration),
             facts_path,
@@ -251,6 +284,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         context_written = write_context(context, context_path)
         print(f"\n[+] Success! Decompiled target with headless Ghidra ({orchestrator.backend}) and extracted {len(findings)} system call(s).")
         print(f"[+] Markdown report generated at:\n    {written_path}")
+        if pdf_written:
+            print(f"[+] PDF report generated at:\n    {pdf_written}")
         print(f"[+] Model context bundle generated at:\n    {context_written}")
         print(f"[+] Full facts generated at:\n    {facts_written}\n")
         return 0
