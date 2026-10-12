@@ -97,6 +97,14 @@ class TestRealGhidraOutputReplay(unittest.TestCase):
         # Every imported API is also called, so no [IMPORT_TABLE] findings remain.
         self.assertNotIn("[IMPORT_TABLE]", {f.function_name for f in orch.findings})
 
+        orch.facts = collector.facts
+        orch._add_insights()
+        hardening = orch.facts["hardening"]
+        self.assertEqual((hardening["format"], hardening["pie"], hardening["stack_canary"]), ("Mach-O", True, True))
+        self.assertFalse(hardening["stripped"])
+        callers = {f["name"]: f["callers"] for f in orch.facts["functions"]}
+        self.assertEqual(callers["_process_execution"], ["entry"])
+
 
 if __name__ == "__main__":
     unittest.main()
