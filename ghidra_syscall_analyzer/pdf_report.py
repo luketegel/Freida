@@ -84,6 +84,8 @@ def _styles() -> Dict[str, ParagraphStyle]:
                                       alignment=TA_CENTER),
         "code": ParagraphStyle("Code", parent=body, fontName="Courier", fontSize=7.5, leading=9.2,
                                spaceAfter=0),
+        "verdict": ParagraphStyle("Verdict", parent=body, fontName="Helvetica-Bold", fontSize=16, leading=21,
+                                  spaceAfter=2),
         "caption": ParagraphStyle("Caption", parent=body, fontSize=8, leading=10, textColor=MUTED),
     }
 
@@ -196,37 +198,50 @@ def code_block(code: str, max_lines: Optional[int] = None) -> Table:
     return table
 
 
-def tldr_box(paragraphs: List[str], accent: colors.Color = ACCENT) -> Table:
-    """A tinted "TL;DR" callout for the top of a report; `paragraphs` are Paragraph markup."""
-    rows = [[Paragraph(f'<font color="{accent.hexval()}"><b>TL;DR</b></font>', STYLES["cell_bold"])]]
-    rows += [[Paragraph(markup, STYLES["body"])] for markup in paragraphs]
+def tldr_box(verdict: str, color: colors.Color, confidence: str, reason: str, note: str = "") -> Table:
+    """A "TL;DR" callout for the top of a report: the verdict, then one or two sentences of why."""
+    rows = [
+        [Paragraph(f'<font color="{color.hexval()}"><b>TL;DR</b></font>', STYLES["cell_bold"])],
+        [Paragraph(f'<font color="{color.hexval()}"><b>{text(verdict)}</b></font>'
+                   f'&nbsp;&nbsp;<font size="9.5" color="{MUTED.hexval()}">confidence: {text(confidence)}</font>',
+                   STYLES["verdict"])],
+        [Paragraph(text(reason), STYLES["body"])],
+    ]
+    if note:
+        rows.append([Paragraph(text(note), STYLES["caption"])])
     box = Table(rows, colWidths=[CONTENT_WIDTH])
     box.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, -1), HEADER_BG),
-        ("LINEBEFORE", (0, 0), (0, -1), 3, accent),
+        ("LINEBEFORE", (0, 0), (0, -1), 3, color),
         ("LEFTPADDING", (0, 0), (-1, -1), 10),
         ("RIGHTPADDING", (0, 0), (-1, -1), 10),
         ("TOPPADDING", (0, 0), (-1, -1), 1),
         ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
         ("TOPPADDING", (0, 0), (-1, 0), 7),
-        ("BOTTOMPADDING", (0, -1), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, -1), (-1, -1), 7),
     ]))
     return box
 
 
-SEVERITY_RANK = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1, "INFO": 0}
-
-# How each category reads in the TL;DR, most telling first when severities tie.
-CATEGORY_PHRASES = {
-    "Process & Execution": "spawns or controls processes",
-    "Direct Syscall": "enters the kernel directly with raw syscall instructions",
-    "Networking & Sockets": "opens network connections",
-    "Memory Management": "allocates memory or changes page protection",
-    "Security & Privileges": "changes credentials or privileges",
-    "IPC & Signals": "uses signals or inter-process communication",
-    "File I/O": "reads or writes files",
-    "System Info & Hardware": "queries system or hardware information",
+VERDICT_COLORS = {
+    "Malicious": CLASSIFICATION_COLORS["malicious"],
+    "Suspicious": CLASSIFICATION_COLORS["suspicious"],
+    "Needs Review": CLASSIFICATION_COLORS["potentially_unwanted"],
+    "Likely Benign": CLASSIFICATION_COLORS["benign"],
+    "Unknown": CLASSIFICATION_COLORS["unknown"],
 }
+
+# What each risky capability is called in a verdict reason.
+CAPABILITY_NAMES = {
+    "exec": "starting other programs",
+    "net": "network access",
+    "memprot": "making memory executable or changing page protection",
+    "direct": "raw syscall instructions that bypass the C library",
+    "priv": "changing credentials or privileges",
+}
+
+REMOTE_WRITE_CALLS = {"WriteProcessMemory", "NtWriteVirtualMemory", "vm_write"}
+REMOTE_EXEC_CALLS = {"CreateRemoteThread", "NtCreateThreadEx", "ZwCreateThreadEx", "NtQueueApcThread", "task_for_pid"}
 
 
 def _join(items: List[str]) -> str:
@@ -235,58 +250,44 @@ def _join(items: List[str]) -> str:
     return f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def _plural(count: int, word: str, plural: Optional[str] = None) -> str:
-    return f"{count} {word if count == 1 else (plural or word + 's')}"
-
-
-def syscall_tldr(metadata: Dict[str, Any], findings: List[SyscallFinding],
-                 functions_decompiled: Optional[int] = None) -> List[str]:
-    """A few plain sentences on what the decompilation found, as Paragraph markup."""
-    name = mono(metadata.get("file_name", "the target"))
-    file_type = metadata.get("file_type")
-    described = f"{name} ({text(file_type)})" if file_type and file_type != "Unknown" else name
-    funcs = metadata.get("functions_decompiled", functions_decompiled or 0)
-    prefix = "In this mock dry run (simulated data), " if metadata.get("backend") == "mock" else ""
-    opening = f"{prefix}Ghidra decompiled {_plural(funcs, 'function')} of {described}"
-
+def assess_syscalls(findings: List[SyscallFinding]) -> Dict[str, str]:
+    """A rule-based verdict from the detected system calls alone: verdict, confidence and reason."""
     if not findings:
-        return [f"{opening} and found no system calls or system call wrappers; "
-                "nothing high-risk was observed."]
+        return {"verdict": "Unknown", "confidence": "low",
+                "reason": "No system calls were detected, so there is too little to judge what the program does."}
 
-    unique = len({f.name for f in findings})
-    sentences = [f"{opening} and found {_plural(len(findings), 'system call site')} "
-                 f"({unique} unique) across {_plural(len({f.category for f in findings}), 'category', 'categories')}."]
+    names = {f.name for f in findings}
+    high = [f for f in findings if f.severity in ("HIGH", "CRITICAL")]
+    present = {
+        "exec": any(f.category == "Process & Execution" for f in high),
+        "net": any(f.category == "Networking & Sockets" for f in findings),
+        "memprot": any(f.category == "Memory Management" for f in high),
+        "direct": any(f.category == "Direct Syscall" for f in findings),
+        "priv": any(f.category == "Security & Privileges" for f in high),
+    }
+    risky = [CAPABILITY_NAMES[key] for key, found in present.items() if found]
 
-    by_category: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
-    for f in findings:
-        by_category[f.category].append(f)
-    order = list(CATEGORY_PHRASES)
-    ranked = sorted(
-        by_category.items(),
-        key=lambda item: (-max(SEVERITY_RANK.get(f.severity, 0) for f in item[1]),
-                          order.index(item[0]) if item[0] in order else len(order)),
-    )
-    capabilities = []
-    for category, items in ranked[:3]:
-        items = sorted(items, key=lambda f: (-SEVERITY_RANK.get(f.severity, 0), f.name))
-        if category == "Direct Syscall":
-            examples = f"in {mono(', '.join(dict.fromkeys(f.function_name for f in items)))}"
-        else:
-            examples = mono(", ".join(list(dict.fromkeys(f.name for f in items))[:2]))
-        phrase = CATEGORY_PHRASES.get(category, f"makes {category} calls")
-        capabilities.append(f"{text(phrase)} ({examples})")
-    sentences.append(f"The binary {_join(capabilities)}.")
-
-    severities = collections.Counter(f.severity for f in findings)
-    serious = [f for f in findings if f.severity in ("CRITICAL", "HIGH")]
-    if serious:
-        counts = [_plural(severities[s], f"{s.lower()}-severity call") for s in ("CRITICAL", "HIGH") if severities[s]]
-        top = sorted(serious, key=lambda f: -SEVERITY_RANK[f.severity])[:2]
-        examples = _join([f"{mono(f.name)} in {mono(f.function_name)}" for f in top])
-        sentences.append(f"It has {_join(counts)}, including {examples}.")
-    else:
-        sentences.append("No high- or critical-severity calls were found.")
-    return [" ".join(sentences)]
+    if names & REMOTE_WRITE_CALLS and names & REMOTE_EXEC_CALLS:
+        return {"verdict": "Malicious", "confidence": "medium",
+                "reason": "The program can write into other processes' memory and start code there, the "
+                          "standard recipe for code injection."}
+    if any(f.severity == "CRITICAL" for f in findings):
+        return {"verdict": "Suspicious", "confidence": "medium",
+                "reason": "The program can reach into other processes' memory, which is mainly done by "
+                          "debuggers and by code injection."}
+    if present["exec"] and present["net"]:
+        return {"verdict": "Suspicious", "confidence": "medium",
+                "reason": "The program can both open network connections and start other programs, a combination "
+                          "common in droppers, backdoors and remote shells."}
+    if len(risky) >= 2:
+        return {"verdict": "Suspicious", "confidence": "low",
+                "reason": f"The program combines several high-risk capabilities: {_join(risky)}."}
+    if high or risky:
+        return {"verdict": "Needs Review", "confidence": "low",
+                "reason": f"The program has a high-risk capability ({_join(risky) or high[0].name}) that is common "
+                          "in legitimate software but worth checking."}
+    return {"verdict": "Likely Benign", "confidence": "medium",
+            "reason": "Only routine system calls (such as file access, memory allocation and clocks) were found."}
 
 
 def _build(path: Union[str, Path], title: str, footer_label: str, story: List[Any]) -> Path:
@@ -333,7 +334,7 @@ class PdfReportGenerator:
     def build_story(self) -> List[Any]:
         story: List[Any] = []
         story += self._header()
-        story += [tldr_box(syscall_tldr(self.metadata, self.findings, len(self.decompiled_functions))), Spacer(1, 4)]
+        story += [self._tldr(), Spacer(1, 4)]
         story += self._target_overview()
         story += self._dashboard()
         story += self._categories()
@@ -355,6 +356,14 @@ class PdfReportGenerator:
             ),
             Spacer(1, 6),
         ]
+
+    def _tldr(self) -> Table:
+        assessment = assess_syscalls(self.findings)
+        note = "Rule-based assessment from the detected system calls, not a malware scan; details follow."
+        if self.metadata.get("backend") == "mock":
+            note = "Mock dry run on simulated data. " + note
+        return tldr_box(assessment["verdict"], VERDICT_COLORS[assessment["verdict"]], assessment["confidence"],
+                        assessment["reason"], note)
 
     def _target_overview(self) -> List[Any]:
         m = self.metadata
@@ -551,27 +560,17 @@ def write_overview_pdf(result: Dict[str, Any], target: Dict[str, Any], output_pa
     return _build(output_path, f"Analysis Report: {name}", f"Freida · Behavioral Overview · {name}", story)
 
 
-def _overview_color(overview: Dict[str, Any]) -> colors.Color:
-    classification = str((overview.get("assessment") or {}).get("classification", "unknown"))
-    return CLASSIFICATION_COLORS.get(classification, MUTED)
-
-
 def _overview_tldr(overview: Dict[str, Any]) -> Table:
-    """The verdict and the model's short summary, in a callout at the top of the report."""
+    """The model's verdict and its reason, in a callout at the top of the report."""
     assessment = overview.get("assessment") or {}
     classification = str(assessment.get("classification", "unknown"))
-    color = _overview_color(overview)
-    verdict = (f'<font color="{color.hexval()}"><b>{text(classification.replace("_", " ").title())}</b></font>'
-               f' <font color="{MUTED.hexval()}">(confidence: {text(assessment.get("confidence", "unknown"))})</font>')
-    summary = [block.strip() for block in str(overview.get("summary") or "").split("\n\n") if block.strip()]
-    return tldr_box([verdict] + [text(block).replace("\n", "<br/>") for block in summary], color)
+    return tldr_box(classification.replace("_", " ").title(), CLASSIFICATION_COLORS.get(classification, MUTED),
+                    str(assessment.get("confidence", "unknown")), str(assessment.get("rationale") or ""),
+                    "Assessment by the model from the decompiled binary; details follow.")
 
 
 def _overview_body(overview: Dict[str, Any]) -> List[Any]:
-    assessment = overview.get("assessment") or {}
-    story: List[Any] = []
-    if assessment.get("rationale"):
-        story.append(Paragraph(f"<b>Assessment:</b> {text(assessment['rationale'])}", STYLES["body"]))
+    story: List[Any] = _paragraphs(overview.get("summary"), STYLES["body"])
     story.append(Paragraph("Execution Flow", STYLES["h1"]))
     story += _paragraphs(overview.get("execution_flow"), STYLES["body"])
 
