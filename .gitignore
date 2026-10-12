@@ -7,5 +7,6 @@ __pycache__/
 # JVM crash logs (e.g. from pyghidra.start())
 hs_err_pid*.log
 
-# Generated model context bundles
+# Generated model context bundles and facts
 *_context.json
+*_facts.json

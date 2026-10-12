@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from ghidra_syscall_analyzer.context_builder import build_context, write_context
+from ghidra_syscall_analyzer.context_builder import build_context, build_facts, write_context, write_facts
 from ghidra_syscall_analyzer.orchestrator import BACKENDS, HeadlessOrchestrator
 from ghidra_syscall_analyzer.report_generator import MarkdownReportGenerator
 from ghidra_syscall_analyzer.syscall_detector import SyscallDetector, SyscallFinding
@@ -126,6 +126,11 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Path to output model context JSON (default: <target_name>_context.json).",
     )
     parser.add_argument(
+        "--facts-out",
+        type=Path,
+        help="Path to output the full, uncapped facts JSON (default: <target_name>_facts.json).",
+    )
+    parser.add_argument(
         "--backend",
         choices=BACKENDS,
         help="Analysis backend: 'pyghidra' (in-process headless Ghidra, default) or 'mcp' "
@@ -200,6 +205,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     # Default output paths
     output_path = args.output or Path(f"{target_path.stem}_syscalls.md")
     context_path = args.context_out or Path(f"{target_path.stem}_context.json")
+    facts_path = args.facts_out or Path(f"{target_path.stem}_facts.json")
 
     if args.mock_dry_run:
         written_path = run_mock_analysis(target_path, output_path)
@@ -227,16 +233,22 @@ def main(argv: Optional[list[str]] = None) -> int:
             decompiled_functions=orchestrator.decompiled_functions,
         )
         written_path = report_generator.write_to_file(output_path)
+        facts_written = write_facts(
+            build_facts(metadata, orchestrator.facts, findings, exploration=orchestrator.exploration),
+            facts_path,
+        )
         context = build_context(
             metadata=metadata,
             facts=orchestrator.facts,
             findings=findings,
             exploration=orchestrator.exploration,
+            facts_file=facts_written.name,
         )
         context_written = write_context(context, context_path)
         print(f"\n[+] Success! Decompiled target with headless Ghidra ({orchestrator.backend}) and extracted {len(findings)} system call(s).")
         print(f"[+] Markdown report generated at:\n    {written_path}")
-        print(f"[+] Model context bundle generated at:\n    {context_written}\n")
+        print(f"[+] Model context bundle generated at:\n    {context_written}")
+        print(f"[+] Full facts generated at:\n    {facts_written}\n")
         return 0
 
     except Exception as e:

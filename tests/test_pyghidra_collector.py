@@ -129,7 +129,9 @@ class TestStringExtraction(unittest.TestCase):
             strings = self.collector._extract_strings(_FakeProgram([]))
 
         self.assertEqual([s["value"] for s in strings], ["/bin/sh", "/tmp/output.dat"])
-        self.assertEqual(strings[0], {"address": "00102000", "value": "/bin/sh"})
+        self.assertEqual(strings[0]["address"], "00102000")
+        self.assertEqual(strings[0]["referenced_by"], [])
+        self.assertFalse(strings[0]["referenced"])
 
     def test_falls_back_to_listing_scan(self) -> None:
         util = types.ModuleType("ghidra.program.util")
@@ -183,6 +185,14 @@ class TestPyGhidraLiveIntegration(unittest.TestCase):
             self.assertTrue(main["callsites"])
             self.assertIn("file_io_operations", {plain(c["to"]) for c in main["callsites"]})
             self.assertTrue(facts["program"]["language_id"])
+            self.assertTrue(main["signature"])
+
+            # Extended context: memory map, metadata, and strings linked to the code that uses them.
+            self.assertTrue(facts["memory_map"])
+            self.assertTrue(any("x" in b["permissions"] for b in facts["memory_map"]))
+            self.assertTrue(facts["program_metadata"])
+            output_path = next(s for s in facts["strings"] if s["value"] == "/tmp/output.dat")
+            self.assertIn("file_io_operations", {plain(r["function"]) for r in output_path["referenced_by"]})
 
 
 if __name__ == "__main__":

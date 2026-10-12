@@ -9,7 +9,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 ## 🚀 Key Features
 
 * **PyGhidra Headless Collection (default):** Loads the target in-process with PyGhidra, runs Ghidra auto-analysis, and extracts program metadata, imports/exports, every function with its callsites, decompiled C, and defined strings, without ever launching the Ghidra GUI.
-* **Model Context Bundle:** Writes `<target>_context.json`, a compact, address-annotated summary sized for a model's context window, with a `truncated` section listing what was left out and an `exploration` section describing the Ghidra MCP server.
+* **Model Context and Facts:** Writes `<target>_context.json`, a compact, address-annotated summary sized for a model's context window, and `<target>_facts.json` with everything uncapped: strings and global data with cross-references, data types, memory map with entropy, hardening, indicators, function signatures and callers.
 * **Ghidra MCP Backend (optional):** Can instead drive a Ghidra MCP server (JSON-RPC 2.0 over `stdio` or HTTP) with `--backend mcp`, `--mcp-cmd`, or `--server-url`.
 * **Multi-Format Support:**
   * **Linux:** ELF 32/64-bit binaries.
@@ -109,7 +109,7 @@ python3 -m pip install -e '.[ghidra]'
 Analyze a binary, writing the Markdown report and the model context bundle:
 ```bash
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
-python3 analyze_syscalls.py /path/to/target_binary -o report.md --context-out context.json
+python3 analyze_syscalls.py /path/to/target_binary -o report.md --context-out context.json --facts-out facts.json
 ```
 
 ### Running with Headless Ghidra MCP via `uvx`
@@ -147,6 +147,7 @@ python3 analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary \
 | `-b, --binary` | Explicit flag to specify the target path. |
 | `-o, --output` | Output Markdown report file path (default: `<target>_syscalls.md`). |
 | `--context-out` | Output model context JSON path (default: `<target>_context.json`). |
+| `--facts-out` | Output full, uncapped facts JSON path (default: `<target>_facts.json`). |
 | `--backend` | `pyghidra` (default) or `mcp` (implied by `--mcp-cmd` / `--server-url`). |
 | `--mcp-cmd` | Custom command to spawn a headless Ghidra MCP server (`{binary}` is replaced with the target path). |
 | `--server-url` | URL of a running Ghidra MCP server (e.g. `http://127.0.0.1:8081`). |
@@ -171,19 +172,27 @@ Each report contains:
 5. **System Calls Inventory Table:** Every call site mapped with function name, address, line number, detection type, arguments, and severity.
 6. **Decompiled Evidence & Callsite Context:** Syntax-highlighted code blocks with line annotations and expandable full decompiled function bodies.
 
-## 🤖 Model Context Bundle
+## 🤖 Model Context and Facts
 
-`<target>_context.json` is the starting context for an AI model analyzing the binary:
+Each real run writes two JSON files for an AI model analyzing the binary:
+
+* **`<target>_context.json`**: the starting context, sized for a model's context window. Sections are relevance-ranked and capped, and file-format metadata that no code uses (load commands, symbol and string tables, loader structures) is left out; `truncated` lists exactly what was cut and names the facts file.
+* **`<target>_facts.json`**: everything collected, uncapped, including full decompiled code for every function and up to 50 cross-references per string or global. Strings, globals, data types and indicators carry `origin`: `program` or `file_format`.
 
 | Key | Contents |
 | :--- | :--- |
 | `target` | File name, size, SHA-256/MD5, detected file type, Ghidra architecture, backend. |
-| `program` | Ghidra language/compiler IDs, image base, format, entry points. |
+| `program` / `program_metadata` | Ghidra language/compiler IDs, image base, format, entry points; Ghidra's *Program Information* fields (compiler, format details, required libraries). |
+| `hardening` | PIE, NX, RELRO (from the file header), stack canary, FORTIFY, RWX sections, and whether the binary looks stripped. Unknown values are `null`. |
+| `memory_map` | Sections/segments with start, end, size, `rwx` permissions, and byte entropy (high entropy suggests packed or encrypted data). |
 | `imports` / `exports` | External symbols with library and address; external entry points. |
-| `syscall_summary` / `syscall_findings` | Detected system calls by severity and category, with function, line, and arguments. |
-| `functions` | Every collected function: address, size, callees, callsites (`to`, `at`), detected syscalls; decompiled C for entry points and functions with findings. |
-| `strings` | Defined strings with addresses (capped). |
-| `truncated` | What was capped or omitted, so the model knows to explore further. |
+| `syscall_summary` / `syscall_findings` | Detected system calls by severity and category, with function, exact call address, line, and arguments. |
+| `functions` | Every collected function: address, size, signature, calling convention, callers, callees, callsites (`to`, `at`), detected syscalls; decompiled C (context: entry points and functions with findings; facts: all). |
+| `strings` | All defined strings with section, encoding, and the functions that use them (following pointers such as `PTR_s__bin_ls`). Context: referenced strings first. |
+| `globals` | Global data (variables, pointers, tables) with label, type, size, section, value preview, pointer target, and referencing functions. |
+| `data_types` | Structs, unions, enums and typedefs the program uses (in globals, signatures, locals and decompiler-inferred variables) with fields, offsets and sizes. |
+| `indicators` | URLs, IPs, domains, emails, file paths, registry keys and shell commands found in strings, with the functions that use them. |
+| `truncated` | (context only) What was capped or omitted and `full_facts_file`. |
 | `exploration` | How to reach a Ghidra MCP server (launch command or URL, and its tools when known). |
 
 ---

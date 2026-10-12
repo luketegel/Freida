@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from ghidra_syscall_analyzer.context_builder import build_context, build_facts
 from ghidra_syscall_analyzer.orchestrator import DEFAULT_MCP_PACKAGE, HeadlessOrchestrator
 from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
 
@@ -96,6 +97,34 @@ class TestRealGhidraOutputReplay(unittest.TestCase):
         )
         # Every imported API is also called, so no [IMPORT_TABLE] findings remain.
         self.assertNotIn("[IMPORT_TABLE]", {f.function_name for f in orch.findings})
+
+        orch.facts = collector.facts
+        orch._add_insights()
+        hardening = orch.facts["hardening"]
+        self.assertEqual((hardening["format"], hardening["pie"], hardening["stack_canary"]), ("Mach-O", True, True))
+        self.assertFalse(hardening["stripped"])
+        callers = {f["name"]: f["callers"] for f in orch.facts["functions"]}
+        self.assertEqual(callers["_process_execution"], ["entry"])
+        self.assertEqual(hardening["rwx_sections"], [])
+
+        # Indicators and file-format tagging on real Ghidra 12.1.4 output.
+        indicators = {i["value"]: i for i in orch.facts["indicators"]}
+        self.assertEqual(indicators["/tmp/output.dat"]["referenced_by"], ["_file_io_operations"])
+        self.assertEqual(indicators["/usr/lib/libSystem.B.dylib"]["origin"], "file_format")
+        program_strings = [s["value"] for s in orch.facts["strings"] if s["origin"] == "program"]
+        self.assertEqual(program_strings, ["Direct syscall test\n", "/tmp/output.dat", "Data payload", "/bin/ls", "-la", "", ""])
+        program_types = {t["name"] for t in orch.facts["data_types"] if t["origin"] == "program"}
+        self.assertEqual(program_types, {"sockaddr", "__uint8_t", "sa_family_t", "pid_t", "ssize_t", "size_t", "socklen_t"})
+
+        context = build_context(orch.metadata, orch.facts, orch.findings, facts_file="sample_binary_facts.json")
+        # Each string is used by one function, so they keep address order; unreferenced "-la" comes last.
+        self.assertEqual([s["value"] for s in context["strings"]],
+                         ["Direct syscall test\n", "/tmp/output.dat", "Data payload", "/bin/ls", "-la"])
+        self.assertEqual(len(context["globals"]), 16)
+        self.assertEqual(context["data_types"][0]["name"], "sockaddr")
+        self.assertEqual(context["truncated"]["file_format_omitted"],
+                         {"strings": 62, "globals": 140, "data_types": 24, "indicators": 2})
+        self.assertEqual(len(build_facts(orch.metadata, orch.facts, orch.findings)["strings"]), 69)
 
 
 if __name__ == "__main__":

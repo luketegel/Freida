@@ -1,5 +1,5 @@
 {
-  "_comment": "Real PyGhidra facts for samples/sample_binary (macOS arm64), Ghidra 12.1.4. Strings omitted.",
+  "_comment": "Real PyGhidra facts for samples/sample_binary (macOS arm64), Ghidra 12.1.4. Local paths replaced with /path/to/Freida.",
   "program": {
     "name": "sample_binary",
     "language_id": "AARCH64:LE:64:AppleSilicon",
@@ -18,6 +18,141 @@
       "100000608"
     ]
   },
+  "program_metadata": {
+    "Analysis Times.Times": "0.369 seconds",
+    "Analyzed": "True",
+    "Compiler": "unknown",
+    "Created With Ghidra Version": "12.1.4",
+    "Date Created": "Mon Oct 12 11:44:16 PDT 2026",
+    "Executable Format": "Mac OS X Mach-O",
+    "Executable Location": "/path/to/Freida/ghidra_syscall_analyzer/samples/sample_binary",
+    "Executable MD5": "e0cbdec65ec18790e069f12205c82e93",
+    "Executable SHA256": "c0ff6f7518d5219d72f69c6e92f8e0ed240b44ac4dd0aa45f6efe6e1797b2e45",
+    "FSRL": "file:///path/to/Freida/ghidra_syscall_analyzer/samples/sample_binary?MD5=e0cbdec65ec18790e069f12205c82e93",
+    "Mach-O File Type": "EXECUTE",
+    "Mach-O File Type Description": "Demand Paged Executable File",
+    "Mach-O Flag 0": "NOUNDEFS",
+    "Mach-O Flag 1": "DYLDLINK",
+    "Mach-O Flag 2": "TWOLEVEL",
+    "Mach-O Flag 3": "PIE",
+    "Preferred Root Namespace Category": "",
+    "Relocatable": "False",
+    "Required Library [    0]": "/usr/lib/libSystem.B.dylib",
+    "Should Ask To Analyze": "False",
+    "executable_path": "/path/to/Freida/ghidra_syscall_analyzer/samples/sample_binary",
+    "executable_md5": "e0cbdec65ec18790e069f12205c82e93",
+    "executable_sha256": "c0ff6f7518d5219d72f69c6e92f8e0ed240b44ac4dd0aa45f6efe6e1797b2e45"
+  },
+  "memory_map": [
+    {
+      "name": "__TEXT",
+      "start": "100000000",
+      "end": "1000004af",
+      "size": 1200,
+      "permissions": "r-x",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 2.625
+    },
+    {
+      "name": "__text",
+      "start": "1000004b0",
+      "end": "100000733",
+      "size": 644,
+      "permissions": "r-x",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 5.253
+    },
+    {
+      "name": "__stubs",
+      "start": "100000734",
+      "end": "1000007c3",
+      "size": 144,
+      "permissions": "r-x",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 3.487
+    },
+    {
+      "name": "__cstring",
+      "start": "1000007c4",
+      "end": "100000803",
+      "size": 64,
+      "permissions": "r--",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 4.181
+    },
+    {
+      "name": "__unwind_info",
+      "start": "100000804",
+      "end": "100003fff",
+      "size": 14332,
+      "permissions": "r--",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 0.018
+    },
+    {
+      "name": "__got",
+      "start": "100004000",
+      "end": "100004067",
+      "size": 104,
+      "permissions": "rw-",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 1.988
+    },
+    {
+      "name": "__const",
+      "start": "100004068",
+      "end": "10000407f",
+      "size": 24,
+      "permissions": "r--",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 1.291
+    },
+    {
+      "name": "__DATA_CONST",
+      "start": "100004080",
+      "end": "100007fff",
+      "size": 16256,
+      "permissions": "rw-",
+      "initialized": true,
+      "type": "Default",
+      "entropy": -0.0
+    },
+    {
+      "name": "__LINKEDIT",
+      "start": "100008000",
+      "end": "10000860f",
+      "size": 1552,
+      "permissions": "r--",
+      "initialized": true,
+      "type": "Default",
+      "entropy": 4.781
+    },
+    {
+      "name": "__LINKEDIT",
+      "start": "100008610",
+      "end": "10000bfff",
+      "size": 14832,
+      "permissions": "r--",
+      "initialized": false,
+      "type": "Default"
+    },
+    {
+      "name": "EXTERNAL",
+      "start": "10000c000",
+      "end": "10000c0ff",
+      "size": 256,
+      "permissions": "rw-",
+      "initialized": false,
+      "type": "Default"
+    }
+  ],
   "imports": [
     {
       "name": "___stack_chk_fail",
@@ -121,6 +256,8 @@
       "address": "1000004b0",
       "size": 108,
       "is_thunk": false,
+      "signature": "undefined _perform_direct_syscall()",
+      "calling_convention": "unknown",
       "callees": [
         "___stack_chk_fail"
       ],
@@ -130,13 +267,15 @@
           "at": "10000050c"
         }
       ],
-      "decompiled": "\nvoid _perform_direct_syscall(void)\n\n{\n  CallSupervisor(0);\n  if (*(long *)PTR____stack_chk_guard_100004000 - *(long *)PTR____stack_chk_guard_100004000 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 -\n                      *(long *)PTR____stack_chk_guard_100004000);\n  }\n  return;\n}\n"
+      "decompiled": "\nvoid _perform_direct_syscall(void)\n\n{\n  CallSupervisor(0);\n  if (*(long *)PTR____stack_chk_guard_100004000 - *(long *)PTR____stack_chk_guard_100004000 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 -\n                      *(long *)PTR____stack_chk_guard_100004000);\n  }\n  return;\n}\n\n"
     },
     {
       "name": "_file_io_operations",
       "address": "10000051c",
       "size": 100,
       "is_thunk": false,
+      "signature": "undefined _file_io_operations()",
+      "calling_convention": "unknown",
       "callees": [
         "_close",
         "_open",
@@ -156,13 +295,15 @@
           "at": "10000056c"
         }
       ],
-      "decompiled": "\nint _file_io_operations(void)\n\n{\n  int iVar1;\n  \n  iVar1 = _open(\"/tmp/output.dat\",0x201);\n  if (-1 < iVar1) {\n    _write(iVar1,\"Data payload\",0xc);\n    iVar1 = _close(iVar1);\n  }\n  return iVar1;\n}\n"
+      "decompiled": "\nint _file_io_operations(void)\n\n{\n  int iVar1;\n  \n  iVar1 = _open(\"/tmp/output.dat\",0x201);\n  if (-1 < iVar1) {\n    _write(iVar1,\"Data payload\",0xc);\n    iVar1 = _close(iVar1);\n  }\n  return iVar1;\n}\n\n"
     },
     {
       "name": "_network_operations",
       "address": "100000580",
       "size": 136,
       "is_thunk": false,
+      "signature": "undefined _network_operations()",
+      "calling_convention": "unknown",
       "callees": [
         "___stack_chk_fail",
         "_close",
@@ -187,13 +328,15 @@
           "at": "1000005f8"
         }
       ],
-      "decompiled": "\nvoid _network_operations(void)\n\n{\n  int iVar1;\n  sockaddr sStack_28;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  iVar1 = _socket(2,1,0);\n  sStack_28.sa_family = '\\x02';\n  sStack_28.sa_data[0] = '\\x1f';\n  sStack_28.sa_data[1] = -0x70;\n  sStack_28.sa_data[2] = '\\0';\n  sStack_28.sa_data[3] = '\\0';\n  sStack_28.sa_data[4] = '\\0';\n  sStack_28.sa_data[5] = '\\0';\n  _connect(iVar1,&sStack_28,0x10);\n  iVar1 = _close(iVar1);\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18,iVar1);\n  }\n  return;\n}\n"
+      "decompiled": "\nvoid _network_operations(void)\n\n{\n  int iVar1;\n  sockaddr sStack_28;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  iVar1 = _socket(2,1,0);\n  sStack_28.sa_family = '\\x02';\n  sStack_28.sa_data[0] = '\\x1f';\n  sStack_28.sa_data[1] = -0x70;\n  sStack_28.sa_data[2] = '\\0';\n  sStack_28.sa_data[3] = '\\0';\n  sStack_28.sa_data[4] = '\\0';\n  sStack_28.sa_data[5] = '\\0';\n  _connect(iVar1,&sStack_28,0x10);\n  iVar1 = _close(iVar1);\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18,iVar1);\n  }\n  return;\n}\n\n"
     },
     {
       "name": "_process_execution",
       "address": "100000608",
       "size": 144,
       "is_thunk": false,
+      "signature": "undefined _process_execution()",
+      "calling_convention": "unknown",
       "callees": [
         "___stack_chk_fail",
         "_execve",
@@ -218,13 +361,15 @@
           "at": "100000688"
         }
       ],
-      "decompiled": "\nvoid _process_execution(void)\n\n{\n  pid_t pVar1;\n  char *local_30;\n  undefined *puStack_28;\n  undefined8 local_20;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  pVar1 = _fork();\n  if (pVar1 == 0) {\n    puStack_28 = PTR_s__la_100004070;\n    local_30 = PTR_s__bin_ls_100004068;\n    local_20 = DAT_100004078;\n    _execve(\"/bin/ls\",&local_30,(char **)0x0);\n                    /* WARNING: Subroutine does not return */\n    _exit(0);\n  }\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18);\n  }\n  return;\n}\n"
+      "decompiled": "\nvoid _process_execution(void)\n\n{\n  pid_t pVar1;\n  char *local_30;\n  undefined *puStack_28;\n  undefined8 local_20;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  pVar1 = _fork();\n  if (pVar1 == 0) {\n    puStack_28 = PTR_s__la_100004070;\n    local_30 = PTR_s__bin_ls_100004068;\n    local_20 = DAT_100004078;\n    _execve(\"/bin/ls\",&local_30,(char **)0x0);\n                    /* WARNING: Subroutine does not return */\n    _exit(0);\n  }\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18);\n  }\n  return;\n}\n\n"
     },
     {
       "name": "_memory_manipulation",
       "address": "100000698",
       "size": 88,
       "is_thunk": false,
+      "signature": "undefined _memory_manipulation()",
+      "calling_convention": "unknown",
       "callees": [
         "_mmap",
         "_mprotect",
@@ -244,13 +389,15 @@
           "at": "1000006e0"
         }
       ],
-      "decompiled": "\nvoid _memory_manipulation(void)\n\n{\n  undefined8 uVar1;\n  \n  uVar1 = _mmap(0,0x1000,3,0x1002,0xffffffff,0);\n  _mprotect(uVar1,0x1000,7);\n  _munmap(uVar1,0x1000);\n  return;\n}\n"
+      "decompiled": "\nvoid _memory_manipulation(void)\n\n{\n  undefined8 uVar1;\n  \n  uVar1 = _mmap(0,0x1000,3,0x1002,0xffffffff,0);\n  _mprotect(uVar1,0x1000,7);\n  _munmap(uVar1,0x1000);\n  return;\n}\n\n"
     },
     {
       "name": "entry",
       "address": "1000006f0",
       "size": 68,
       "is_thunk": false,
+      "signature": "undefined entry()",
+      "calling_convention": "unknown",
       "callees": [
         "_file_io_operations",
         "_memory_manipulation",
@@ -280,13 +427,15 @@
           "at": "100000720"
         }
       ],
-      "decompiled": "\nundefined4 entry(void)\n\n{\n  _perform_direct_syscall();\n  _file_io_operations();\n  _network_operations();\n  _process_execution();\n  _memory_manipulation();\n  return 0;\n}\n"
+      "decompiled": "\nundefined4 entry(void)\n\n{\n  _perform_direct_syscall();\n  _file_io_operations();\n  _network_operations();\n  _process_execution();\n  _memory_manipulation();\n  return 0;\n}\n\n"
     },
     {
       "name": "___stack_chk_fail",
       "address": "100000734",
       "size": 12,
       "is_thunk": true,
+      "signature": "undefined ___stack_chk_fail()",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -295,6 +444,8 @@
       "address": "100000740",
       "size": 12,
       "is_thunk": true,
+      "signature": "int _open(char * param_1, int param_2, ...)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -303,6 +454,8 @@
       "address": "10000074c",
       "size": 12,
       "is_thunk": true,
+      "signature": "ssize_t _write(int param_1, void * param_2, size_t param_3)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -311,6 +464,8 @@
       "address": "100000758",
       "size": 12,
       "is_thunk": true,
+      "signature": "int _close(int param_1)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -319,6 +474,8 @@
       "address": "100000764",
       "size": 12,
       "is_thunk": true,
+      "signature": "int _socket(int param_1, int param_2, int param_3)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -327,6 +484,8 @@
       "address": "100000770",
       "size": 12,
       "is_thunk": true,
+      "signature": "int _connect(int param_1, sockaddr * param_2, socklen_t param_3)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -335,6 +494,8 @@
       "address": "10000077c",
       "size": 12,
       "is_thunk": true,
+      "signature": "pid_t _fork(void)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -343,6 +504,8 @@
       "address": "100000788",
       "size": 12,
       "is_thunk": true,
+      "signature": "int _execve(char * param_1, char * * param_2, char * * param_3)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -351,6 +514,8 @@
       "address": "100000794",
       "size": 12,
       "is_thunk": true,
+      "signature": "void _exit(int param_1)",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -359,6 +524,8 @@
       "address": "1000007a0",
       "size": 12,
       "is_thunk": true,
+      "signature": "undefined _mmap()",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -367,6 +534,8 @@
       "address": "1000007ac",
       "size": 12,
       "is_thunk": true,
+      "signature": "undefined _mprotect()",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     },
@@ -375,9 +544,3496 @@
       "address": "1000007b8",
       "size": 12,
       "is_thunk": true,
+      "signature": "undefined _munmap()",
+      "calling_convention": "unknown",
       "callees": [],
       "callsites": []
     }
   ],
-  "strings": []
+  "strings": [
+    {
+      "address": "100000028",
+      "value": "__PAGEZERO",
+      "length": 10,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000070",
+      "value": "__TEXT",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000000b0",
+      "value": "__text",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000000c0",
+      "value": "__TEXT",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000100",
+      "value": "__stubs",
+      "length": 7,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000110",
+      "value": "__TEXT",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000150",
+      "value": "__cstring",
+      "length": 9,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000160",
+      "value": "__TEXT",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000001a0",
+      "value": "__unwind_info",
+      "length": 13,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000001b0",
+      "value": "__TEXT",
+      "length": 6,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000001f8",
+      "value": "__DATA_CONST",
+      "length": 12,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000238",
+      "value": "__got",
+      "length": 5,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000248",
+      "value": "__DATA_CONST",
+      "length": 12,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000288",
+      "value": "__const",
+      "length": 7,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000298",
+      "value": "__DATA_CONST",
+      "length": 12,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000002e0",
+      "value": "__LINKEDIT",
+      "length": 10,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000003b4",
+      "value": "/usr/lib/dyld",
+      "length": 13,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000440",
+      "value": "/usr/lib/libSystem.B.dylib",
+      "length": 26,
+      "encoding": "string",
+      "section": "__TEXT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000007c4",
+      "value": "Direct syscall test\n",
+      "length": 20,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [
+        {
+          "function": "_perform_direct_syscall",
+          "at": "1000004d4",
+          "ref_type": "READ"
+        }
+      ],
+      "referenced": true
+    },
+    {
+      "address": "1000007d9",
+      "value": "/tmp/output.dat",
+      "length": 15,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [
+        {
+          "function": "_file_io_operations",
+          "at": "100000538",
+          "ref_type": "PARAM"
+        }
+      ],
+      "referenced": true
+    },
+    {
+      "address": "1000007e9",
+      "value": "Data payload",
+      "length": 12,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [
+        {
+          "function": "_file_io_operations",
+          "at": "10000055c",
+          "ref_type": "PARAM"
+        }
+      ],
+      "referenced": true
+    },
+    {
+      "address": "1000007f6",
+      "value": "/bin/ls",
+      "length": 7,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [
+        {
+          "function": "_process_execution",
+          "at": "100000640",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_process_execution",
+          "at": "100000658",
+          "ref_type": "PARAM"
+        }
+      ],
+      "referenced": true
+    },
+    {
+      "address": "1000007fe",
+      "value": "-la",
+      "length": 3,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000802",
+      "value": "",
+      "length": 0,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100000803",
+      "value": "",
+      "length": 0,
+      "encoding": "TerminatedCString",
+      "section": "__cstring",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008085",
+      "value": "___stack_chk_guard",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008098",
+      "value": "___stack_chk_fail",
+      "length": 17,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080aa",
+      "value": "_open",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080b0",
+      "value": "_write",
+      "length": 6,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080b7",
+      "value": "_close",
+      "length": 6,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080be",
+      "value": "_socket",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080c6",
+      "value": "_connect",
+      "length": 8,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080cf",
+      "value": "_fork",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080d5",
+      "value": "_execve",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080dd",
+      "value": "_exit",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080e3",
+      "value": "_mmap",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080e9",
+      "value": "_mprotect",
+      "length": 9,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000080f3",
+      "value": "_munmap",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008102",
+      "value": "_",
+      "length": 1,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000811e",
+      "value": "ain",
+      "length": 3,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008123",
+      "value": "emory_manipulation",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008148",
+      "value": "erform_direct_syscall",
+      "length": 21,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000815f",
+      "value": "rocess_execution",
+      "length": 16,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008173",
+      "value": "_mh_execute_header",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008187",
+      "value": "file_io_operations",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000819b",
+      "value": "m",
+      "length": 1,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000819e",
+      "value": "network_operations",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000081b2",
+      "value": "p",
+      "length": 1,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008372",
+      "value": "__mh_execute_header",
+      "length": 19,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008386",
+      "value": "_file_io_operations",
+      "length": 19,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000839a",
+      "value": "_main",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000083a0",
+      "value": "_memory_manipulation",
+      "length": 20,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000083b5",
+      "value": "_network_operations",
+      "length": 19,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000083c9",
+      "value": "_perform_direct_syscall",
+      "length": 23,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000083e1",
+      "value": "_process_execution",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000083f4",
+      "value": "___stack_chk_fail",
+      "length": 17,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008406",
+      "value": "___stack_chk_guard",
+      "length": 18,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008419",
+      "value": "_close",
+      "length": 6,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008420",
+      "value": "_connect",
+      "length": 8,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008429",
+      "value": "_execve",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008431",
+      "value": "_exit",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008437",
+      "value": "_fork",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000843d",
+      "value": "_mmap",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008443",
+      "value": "_mprotect",
+      "length": 9,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000844d",
+      "value": "_munmap",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008455",
+      "value": "_open",
+      "length": 5,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "10000845b",
+      "value": "_socket",
+      "length": 7,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "100008463",
+      "value": "_write",
+      "length": 6,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    },
+    {
+      "address": "1000084dc",
+      "value": "sample_binary",
+      "length": 13,
+      "encoding": "string",
+      "section": "__LINKEDIT",
+      "referenced_by": [],
+      "referenced": false
+    }
+  ],
+  "globals": [
+    {
+      "address": "100000000",
+      "label": "__mh_execute_header",
+      "type": "mach_header",
+      "size": 32,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000020",
+      "label": null,
+      "type": "segment_command",
+      "size": 72,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000068",
+      "label": null,
+      "type": "segment_command",
+      "size": 72,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000000b0",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000100",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000150",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000001a0",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000001f0",
+      "label": null,
+      "type": "segment_command",
+      "size": 72,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000238",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000288",
+      "label": null,
+      "type": "section",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000002d8",
+      "label": null,
+      "type": "segment_command",
+      "size": 72,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000320",
+      "label": null,
+      "type": "dyld_chained_fixups_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000330",
+      "label": null,
+      "type": "linkedit_data_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000340",
+      "label": null,
+      "type": "symtab_command",
+      "size": 24,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000358",
+      "label": null,
+      "type": "dysymtab_command",
+      "size": 80,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000003a8",
+      "label": null,
+      "type": "dylinker_command",
+      "size": 12,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000003c8",
+      "label": null,
+      "type": "uuid_command",
+      "size": 24,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000003e0",
+      "label": null,
+      "type": "build_version_command",
+      "size": 32,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000400",
+      "label": null,
+      "type": "source_version_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000410",
+      "label": null,
+      "type": "entry_point_command",
+      "size": 24,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000428",
+      "label": null,
+      "type": "dylib_command",
+      "size": 24,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000460",
+      "label": null,
+      "type": "linkedit_data_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000470",
+      "label": null,
+      "type": "linkedit_data_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100000480",
+      "label": null,
+      "type": "linkedit_data_command",
+      "size": 16,
+      "section": "__TEXT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100004000",
+      "label": "PTR____stack_chk_guard_100004000",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "10000c000",
+      "points_to": "___stack_chk_guard",
+      "referenced_by": [
+        {
+          "function": "_perform_direct_syscall",
+          "at": "1000004c0",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_perform_direct_syscall",
+          "at": "1000004f8",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_process_execution",
+          "at": "100000618",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_network_operations",
+          "at": "100000590",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_process_execution",
+          "at": "100000674",
+          "ref_type": "READ"
+        },
+        {
+          "function": "_network_operations",
+          "at": "1000005e4",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004008",
+      "label": "PTR____stack_chk_fail_100004008",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000734",
+      "points_to": "___stack_chk_fail",
+      "referenced_by": [
+        {
+          "function": "___stack_chk_fail",
+          "at": "100000738",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004010",
+      "label": "PTR__open_100004010",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000740",
+      "points_to": "_open",
+      "referenced_by": [
+        {
+          "function": "_open",
+          "at": "100000744",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004018",
+      "label": "PTR__write_100004018",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "10000074c",
+      "points_to": "_write",
+      "referenced_by": [
+        {
+          "function": "_write",
+          "at": "100000750",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004020",
+      "label": "PTR__close_100004020",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000758",
+      "points_to": "_close",
+      "referenced_by": [
+        {
+          "function": "_close",
+          "at": "10000075c",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004028",
+      "label": "PTR__socket_100004028",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000764",
+      "points_to": "_socket",
+      "referenced_by": [
+        {
+          "function": "_socket",
+          "at": "100000768",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004030",
+      "label": "PTR__connect_100004030",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000770",
+      "points_to": "_connect",
+      "referenced_by": [
+        {
+          "function": "_connect",
+          "at": "100000774",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004038",
+      "label": "PTR__fork_100004038",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "10000077c",
+      "points_to": "_fork",
+      "referenced_by": [
+        {
+          "function": "_fork",
+          "at": "100000780",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004040",
+      "label": "PTR__execve_100004040",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000788",
+      "points_to": "_execve",
+      "referenced_by": [
+        {
+          "function": "_execve",
+          "at": "10000078c",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004048",
+      "label": "PTR__exit_100004048",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "100000794",
+      "points_to": "_exit",
+      "referenced_by": [
+        {
+          "function": "_exit",
+          "at": "100000798",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004050",
+      "label": "PTR__mmap_100004050",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "1000007a0",
+      "points_to": "_mmap",
+      "referenced_by": [
+        {
+          "function": "_mmap",
+          "at": "1000007a4",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004058",
+      "label": "PTR__mprotect_100004058",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "1000007ac",
+      "points_to": "_mprotect",
+      "referenced_by": [
+        {
+          "function": "_mprotect",
+          "at": "1000007b0",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004060",
+      "label": "PTR__munmap_100004060",
+      "type": "pointer",
+      "size": 8,
+      "section": "__got",
+      "value_preview": "1000007b8",
+      "points_to": "_munmap",
+      "referenced_by": [
+        {
+          "function": "_munmap",
+          "at": "1000007bc",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004068",
+      "label": "PTR_s_/bin/ls_100004068",
+      "type": "pointer",
+      "size": 8,
+      "section": "__const",
+      "value_preview": "1000007f6",
+      "points_to": "s_/bin/ls_1000007f6",
+      "referenced_by": [
+        {
+          "function": "_process_execution",
+          "at": "100000640",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100004070",
+      "label": null,
+      "type": "pointer",
+      "size": 8,
+      "section": "__const",
+      "value_preview": "1000007fe",
+      "points_to": "s_-la_1000007fe",
+      "referenced_by": []
+    },
+    {
+      "address": "100004078",
+      "label": "DAT_100004078",
+      "type": "undefined8",
+      "size": 8,
+      "section": "__const",
+      "value_preview": "0000000000000000h",
+      "referenced_by": [
+        {
+          "function": "_process_execution",
+          "at": "10000064c",
+          "ref_type": "READ"
+        }
+      ]
+    },
+    {
+      "address": "100008000",
+      "label": null,
+      "type": "dyld_chained_fixups_header",
+      "size": 28,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008020",
+      "label": null,
+      "type": "dyld_chained_starts_in_image",
+      "size": 20,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008038",
+      "label": null,
+      "type": "dyld_chained_starts_in_segment",
+      "size": 24,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008050",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008054",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008058",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "10000805c",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008060",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008064",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008068",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "10000806c",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008070",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008074",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008078",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "10000807c",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008080",
+      "label": null,
+      "type": "dyld_chained_import",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008100",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008101",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "1h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008104",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "71h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008109",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "2h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810a",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810b",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810c",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810d",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810e",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000810f",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "51Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "100008111",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008112",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008113",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008114",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "6F0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008116",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008117",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008118",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008119",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "698h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000811b",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000811c",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000811d",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "2h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008122",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "12h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008136",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "17h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008137",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008138",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008139",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "580h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000813b",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000813c",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000813d",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000813e",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "4B0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008140",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008141",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008142",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008143",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "608h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008145",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008146",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008147",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "2h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000815e",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "3Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "100008170",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "41h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008171",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "0h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008172",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "5h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008186",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "9h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000819a",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "Dh",
+      "referenced_by": []
+    },
+    {
+      "address": "10000819d",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "1Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081b1",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "37h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081b4",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "46h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081b8",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "4B0h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081ba",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "6Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081bb",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "64h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081bc",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "88h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081be",
+      "label": null,
+      "type": "uleb128",
+      "size": 2,
+      "section": "__LINKEDIT",
+      "value_preview": "90h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081c0",
+      "label": null,
+      "type": "uleb128",
+      "size": 1,
+      "section": "__LINKEDIT",
+      "value_preview": "58h",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081c8",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081d8",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081e8",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000081f8",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008208",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008218",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008228",
+      "label": null,
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008238",
+      "label": "nlist_100008238",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008248",
+      "label": "nlist_100008248",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008258",
+      "label": "nlist_100008258",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008268",
+      "label": "nlist_100008268",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008278",
+      "label": "nlist_100008278",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008288",
+      "label": "nlist_100008288",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008298",
+      "label": "nlist_100008298",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082a8",
+      "label": "nlist_1000082a8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082b8",
+      "label": "nlist_1000082b8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082c8",
+      "label": "nlist_1000082c8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082d8",
+      "label": "nlist_1000082d8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082e8",
+      "label": "nlist_1000082e8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000082f8",
+      "label": "nlist_1000082f8",
+      "type": "nlist",
+      "size": 16,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008308",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "7h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000830c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "11h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008310",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "13h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008314",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "9h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008318",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "12h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000831c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Ah",
+      "referenced_by": []
+    },
+    {
+      "address": "100008320",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Dh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008324",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Bh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008328",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "10000832c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Eh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008330",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Fh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008334",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "10h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008338",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "8h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000833c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "7h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008340",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "11h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008344",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "13h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008348",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "9h",
+      "referenced_by": []
+    },
+    {
+      "address": "10000834c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "12h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008350",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Ah",
+      "referenced_by": []
+    },
+    {
+      "address": "100008354",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Dh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008358",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Bh",
+      "referenced_by": []
+    },
+    {
+      "address": "10000835c",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Ch",
+      "referenced_by": []
+    },
+    {
+      "address": "100008360",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Eh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008364",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "Fh",
+      "referenced_by": []
+    },
+    {
+      "address": "100008368",
+      "label": null,
+      "type": "dword",
+      "size": 4,
+      "section": "__LINKEDIT",
+      "value_preview": "10h",
+      "referenced_by": []
+    },
+    {
+      "address": "100008470",
+      "label": null,
+      "type": "CS_SuperBlob",
+      "size": 20,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "100008484",
+      "label": null,
+      "type": "CS_CodeDirectory",
+      "size": 88,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    },
+    {
+      "address": "1000084ea",
+      "label": null,
+      "type": "byte[9][32]",
+      "size": 288,
+      "section": "__LINKEDIT",
+      "value_preview": "",
+      "referenced_by": []
+    }
+  ],
+  "data_types": [
+    {
+      "name": "sockaddr",
+      "path": "/socket.h/sockaddr",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "mac_osx",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "sa_len",
+          "type": "__uint8_t",
+          "size": 1
+        },
+        {
+          "offset": 1,
+          "name": "sa_family",
+          "type": "sa_family_t",
+          "size": 1
+        },
+        {
+          "offset": 2,
+          "name": "sa_data",
+          "type": "char[14]",
+          "size": 14
+        }
+      ],
+      "used_by": [
+        "_connect",
+        "_network_operations"
+      ]
+    },
+    {
+      "name": "__uint8_t",
+      "path": "/_types.h/__uint8_t",
+      "kind": "typedef",
+      "size": 1,
+      "source_archive": "mac_osx",
+      "base_type": "uchar",
+      "used_by": []
+    },
+    {
+      "name": "sa_family_t",
+      "path": "/_sa_family_t.h/sa_family_t",
+      "kind": "typedef",
+      "size": 1,
+      "source_archive": "mac_osx",
+      "base_type": "uchar",
+      "used_by": []
+    },
+    {
+      "name": "pid_t",
+      "path": "/_pid_t.h/pid_t",
+      "kind": "typedef",
+      "size": 4,
+      "source_archive": "mac_osx",
+      "base_type": "int",
+      "used_by": [
+        "_fork",
+        "_process_execution"
+      ]
+    },
+    {
+      "name": "ssize_t",
+      "path": "/_ssize_t.h/ssize_t",
+      "kind": "typedef",
+      "size": 8,
+      "source_archive": "mac_osx",
+      "base_type": "long",
+      "used_by": [
+        "_write"
+      ]
+    },
+    {
+      "name": "size_t",
+      "path": "/_size_t.h/size_t",
+      "kind": "typedef",
+      "size": 8,
+      "source_archive": "mac_osx",
+      "base_type": "ulong",
+      "used_by": [
+        "_write"
+      ]
+    },
+    {
+      "name": "socklen_t",
+      "path": "/_socklen_t.h/socklen_t",
+      "kind": "typedef",
+      "size": 4,
+      "source_archive": "mac_osx",
+      "base_type": "uint",
+      "used_by": [
+        "_connect"
+      ]
+    },
+    {
+      "name": "mach_header",
+      "path": "/MachO/mach_header",
+      "kind": "struct",
+      "size": 32,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "magic",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cputype",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "cpusubtype",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "filetype",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "ncmds",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "sizeofcmds",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 24,
+          "name": "flags",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 28,
+          "name": "reserved",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:__mh_execute_header"
+      ]
+    },
+    {
+      "name": "segment_command",
+      "path": "/MachO/segment_command",
+      "kind": "struct",
+      "size": 72,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "segname",
+          "type": "string",
+          "size": 16
+        },
+        {
+          "offset": 24,
+          "name": "vmaddr",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 32,
+          "name": "vmsize",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 40,
+          "name": "fileoff",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 48,
+          "name": "filesize",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 56,
+          "name": "maxprot",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 60,
+          "name": "initprot",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 64,
+          "name": "nsects",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 68,
+          "name": "flags",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100000020",
+        "data:100000068",
+        "data:1000001f0",
+        "data:1000002d8"
+      ]
+    },
+    {
+      "name": "section",
+      "path": "/MachO/section",
+      "kind": "struct",
+      "size": 80,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "sectname",
+          "type": "string",
+          "size": 16
+        },
+        {
+          "offset": 16,
+          "name": "segname",
+          "type": "string",
+          "size": 16
+        },
+        {
+          "offset": 32,
+          "name": "addr",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 40,
+          "name": "size",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 48,
+          "name": "offset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 52,
+          "name": "align",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 56,
+          "name": "reloff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 60,
+          "name": "nrelocs",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 64,
+          "name": "flags",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 68,
+          "name": "reserved1",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 72,
+          "name": "reserved2",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 76,
+          "name": "reserved3",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:1000000b0",
+        "data:100000100",
+        "data:100000150",
+        "data:1000001a0",
+        "data:100000238",
+        "data:100000288"
+      ]
+    },
+    {
+      "name": "dyld_chained_fixups_command",
+      "path": "/MachO/dyld_chained_fixups_command",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "dataoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "datasize",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100000320"
+      ]
+    },
+    {
+      "name": "linkedit_data_command",
+      "path": "/MachO/linkedit_data_command",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "dataoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "datasize",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100000330",
+        "data:100000460",
+        "data:100000470",
+        "data:100000480"
+      ]
+    },
+    {
+      "name": "symtab_command",
+      "path": "/MachO/symtab_command",
+      "kind": "struct",
+      "size": 24,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "symoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "nsyms",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "stroff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "strsize",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100000340"
+      ]
+    },
+    {
+      "name": "dysymtab_command",
+      "path": "/MachO/dysymtab_command",
+      "kind": "struct",
+      "size": 80,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "ilocalsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "nlocalsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "iextdefsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "nextdefsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 24,
+          "name": "iundefsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 28,
+          "name": "nundefsym",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 32,
+          "name": "tocoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 36,
+          "name": "ntoc",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 40,
+          "name": "modtaboff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 44,
+          "name": "nmodtab",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 48,
+          "name": "extrefsymoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 52,
+          "name": "nextrefsyms",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 56,
+          "name": "indirectsymoff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 60,
+          "name": "nindirectsyms",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 64,
+          "name": "extreloff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 68,
+          "name": "nextrel",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 72,
+          "name": "locreloff",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 76,
+          "name": "nlocrel",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100000358"
+      ]
+    },
+    {
+      "name": "dylinker_command",
+      "path": "/MachO/dylinker_command",
+      "kind": "struct",
+      "size": 12,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "name",
+          "type": "lc_str",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:1000003a8"
+      ]
+    },
+    {
+      "name": "lc_str",
+      "path": "/MachO/lc_str",
+      "kind": "struct",
+      "size": 4,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "offset",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": []
+    },
+    {
+      "name": "uuid_command",
+      "path": "/MachO/uuid_command",
+      "kind": "struct",
+      "size": 24,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "uuid",
+          "type": "byte[16]",
+          "size": 16
+        }
+      ],
+      "used_by": [
+        "data:1000003c8"
+      ]
+    },
+    {
+      "name": "build_version_command",
+      "path": "/MachO/build_version_command",
+      "kind": "struct",
+      "size": 32,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "platform",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "minos",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "sdk",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "ntools",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 24,
+          "name": "build_tool_version[]",
+          "type": "build_tool_version[1]",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:1000003e0"
+      ]
+    },
+    {
+      "name": "build_tool_version",
+      "path": "/MachO/build_tool_version",
+      "kind": "struct",
+      "size": 8,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "tool",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "version",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": []
+    },
+    {
+      "name": "source_version_command",
+      "path": "/MachO/source_version_command",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "version",
+          "type": "qword",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:100000400"
+      ]
+    },
+    {
+      "name": "entry_point_command",
+      "path": "/MachO/entry_point_command",
+      "kind": "struct",
+      "size": 24,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "entryoff",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 16,
+          "name": "stacksize",
+          "type": "qword",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:100000410"
+      ]
+    },
+    {
+      "name": "dylib_command",
+      "path": "/MachO/dylib_command",
+      "kind": "struct",
+      "size": 24,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "cmd",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "cmdsize",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "dylib",
+          "type": "dylib",
+          "size": 16
+        }
+      ],
+      "used_by": [
+        "data:100000428"
+      ]
+    },
+    {
+      "name": "dylib",
+      "path": "/MachO/dylib",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "name",
+          "type": "lc_str",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "timestamp",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "current_version",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "compatibility_version",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": []
+    },
+    {
+      "name": "dyld_chained_fixups_header",
+      "path": "/MachO/dyld_chained_fixups_header",
+      "kind": "struct",
+      "size": 28,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "fixups_version",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "starts_offset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "imports_offset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "symbols_offset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "imports_count",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "imports_format",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 24,
+          "name": "symbols_format",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": [
+        "data:100008000"
+      ]
+    },
+    {
+      "name": "dyld_chained_starts_in_image",
+      "path": "/MachO/dyld_chained_starts_in_image",
+      "kind": "struct",
+      "size": 20,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "seg_count",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "seg_info_offset",
+          "type": "dword[4]",
+          "size": 16
+        }
+      ],
+      "used_by": [
+        "data:100008020"
+      ]
+    },
+    {
+      "name": "dyld_chained_starts_in_segment",
+      "path": "/MachO/dyld_chained_starts_in_segment",
+      "kind": "struct",
+      "size": 24,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "size",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "page_size",
+          "type": "word",
+          "size": 2
+        },
+        {
+          "offset": 6,
+          "name": "pointer_format",
+          "type": "word",
+          "size": 2
+        },
+        {
+          "offset": 8,
+          "name": "segment_offset",
+          "type": "ImageBaseOffset64",
+          "size": 8
+        },
+        {
+          "offset": 16,
+          "name": "max_valid_pointer",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "page_count",
+          "type": "word",
+          "size": 2
+        },
+        {
+          "offset": 22,
+          "name": "page_starts",
+          "type": "word[1]",
+          "size": 2
+        }
+      ],
+      "used_by": [
+        "data:100008038"
+      ]
+    },
+    {
+      "name": "dyld_chained_import",
+      "path": "/MachO/dyld_chained_import",
+      "kind": "struct",
+      "size": 4,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "lib_ordinal",
+          "type": "dword:8",
+          "size": 1
+        },
+        {
+          "offset": 1,
+          "name": "weak_import",
+          "type": "dword:1",
+          "size": 1
+        },
+        {
+          "offset": 1,
+          "name": "name_offset",
+          "type": "dword:23",
+          "size": 3
+        }
+      ],
+      "used_by": [
+        "data:100008050",
+        "data:100008054",
+        "data:100008058",
+        "data:10000805c",
+        "data:100008060",
+        "data:100008064",
+        "data:100008068",
+        "data:10000806c",
+        "data:100008070",
+        "data:100008074",
+        "data:100008078",
+        "data:10000807c",
+        "data:100008080"
+      ]
+    },
+    {
+      "name": "nlist",
+      "path": "/MachO/nlist",
+      "kind": "struct",
+      "size": 16,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "n_strx",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "n_type",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 5,
+          "name": "n_sect",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 6,
+          "name": "n_desc",
+          "type": "word",
+          "size": 2
+        },
+        {
+          "offset": 8,
+          "name": "n_value",
+          "type": "qword",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:1000081c8",
+        "data:1000081d8",
+        "data:1000081e8",
+        "data:1000081f8",
+        "data:100008208",
+        "data:100008218",
+        "data:100008228",
+        "data:nlist_100008238",
+        "data:nlist_100008248",
+        "data:nlist_100008258",
+        "data:nlist_100008268",
+        "data:nlist_100008278",
+        "data:nlist_100008288",
+        "data:nlist_100008298",
+        "data:nlist_1000082a8",
+        "data:nlist_1000082b8",
+        "data:nlist_1000082c8",
+        "data:nlist_1000082d8",
+        "data:nlist_1000082e8",
+        "data:nlist_1000082f8"
+      ]
+    },
+    {
+      "name": "CS_SuperBlob",
+      "path": "/MachO/CS_SuperBlob",
+      "kind": "struct",
+      "size": 20,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "magic",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "length",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "count",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "index",
+          "type": "CS_BlobIndex[1]",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:100008470"
+      ]
+    },
+    {
+      "name": "CS_BlobIndex",
+      "path": "/MachO/CS_BlobIndex",
+      "kind": "struct",
+      "size": 8,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "type",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "offset",
+          "type": "dword",
+          "size": 4
+        }
+      ],
+      "used_by": []
+    },
+    {
+      "name": "CS_CodeDirectory",
+      "path": "/MachO/CS_CodeDirectory",
+      "kind": "struct",
+      "size": 88,
+      "source_archive": "sample_binary",
+      "fields": [
+        {
+          "offset": 0,
+          "name": "magic",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 4,
+          "name": "length",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 8,
+          "name": "version",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 12,
+          "name": "flags",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 16,
+          "name": "hashOffset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 20,
+          "name": "identOffset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 24,
+          "name": "nSpecialSlots",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 28,
+          "name": "nCodeSlots",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 32,
+          "name": "codeLimit",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 36,
+          "name": "hashSize",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 37,
+          "name": "hashType",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 38,
+          "name": "platform",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 39,
+          "name": "pageSize",
+          "type": "byte",
+          "size": 1
+        },
+        {
+          "offset": 40,
+          "name": "spare2",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 44,
+          "name": "scatterOffset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 48,
+          "name": "teamOffset",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 52,
+          "name": "spare3",
+          "type": "dword",
+          "size": 4
+        },
+        {
+          "offset": 56,
+          "name": "codeLimit64",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 64,
+          "name": "execSegBase",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 72,
+          "name": "execSegLimit",
+          "type": "qword",
+          "size": 8
+        },
+        {
+          "offset": 80,
+          "name": "execSegFlags",
+          "type": "qword",
+          "size": 8
+        }
+      ],
+      "used_by": [
+        "data:100008484"
+      ]
+    }
+  ],
+  "limits": {
+    "functions_total": 18,
+    "data_types_truncated": false
+  }
 }

@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.context_builder import ContextLimits, build_context, write_context
+from ghidra_syscall_analyzer.context_builder import ContextLimits, build_context, build_facts, write_context
 from ghidra_syscall_analyzer.syscall_detector import SyscallDetector
 
 
@@ -92,6 +92,106 @@ class TestContextBuilder(unittest.TestCase):
             path = write_context(ctx, Path(tmp) / "nested" / "ctx.json")
             loaded = json.loads(path.read_text(encoding="utf-8"))
         self.assertEqual(loaded["schema_version"], ctx["schema_version"])
+
+
+def add_extended_facts(facts: dict) -> dict:
+    ref = lambda fn: [{"function": fn, "at": "00101110", "ref_type": "READ"}]
+    facts["strings"] = [
+        {"address": "00102000", "value": "__TEXT", "referenced_by": []},
+        {"address": "00102010", "value": "/bin/sh", "referenced_by": ref("helper_0") + ref("helper_1")},
+        {"address": "00102020", "value": "/tmp/x", "referenced_by": ref("main")},
+    ]
+    facts["globals"] = [
+        {"address": "00103000", "label": "unused", "type": "int", "size": 4, "referenced_by": []},
+        {"address": "00103008", "label": "PTR_s__bin_sh", "type": "pointer", "size": 8, "points_to": "s_/bin/sh",
+         "referenced_by": ref("helper_0")},
+    ]
+    facts["data_types"] = [
+        {"name": "misc_t", "kind": "struct", "size": 4, "used_by": ["quiet", "main"],
+         "fields": [{"offset": 0, "name": "x", "type": "int", "size": 4}]},
+        {"name": "big_t", "kind": "struct", "size": 400, "used_by": ["helper_0"],
+         "fields": [{"offset": i * 4, "name": f"f{i}", "type": "int", "size": 4} for i in range(100)]},
+    ]
+    facts["indicators"] = [{"kind": "unix_path", "value": f"/tmp/{i}", "string_address": "0", "referenced_by": []}
+                           for i in range(5)]
+    facts["memory_map"] = [{"name": ".text", "permissions": "r-x", "entropy": 6.1}]
+    facts["hardening"] = {"format": "ELF", "pie": True, "stack_canary": True}
+    facts["program_metadata"] = {"Compiler ID": "gcc"}
+    for fn in facts["functions"]:
+        fn["callers"] = ["main"] if fn["name"].startswith("helper") else []
+        fn["signature"] = f"void {fn['name']}(void)"
+    return facts
+
+
+class TestExtendedSections(unittest.TestCase):
+
+    def setUp(self) -> None:
+        detector = SyscallDetector()
+        self.facts = add_extended_facts(make_facts())
+        self.findings = []
+        for fn in self.facts["functions"]:
+            self.findings.extend(detector.analyze_decompiled_function(fn["name"], fn["decompiled"], fn["address"]))
+        self.metadata = {"file_name": "sample", "backend": "pyghidra"}
+
+    def test_context_ranks_referenced_items_first(self) -> None:
+        ctx = build_context(self.metadata, self.facts, self.findings, facts_file="sample_facts.json")
+
+        self.assertEqual([s["value"] for s in ctx["strings"]], ["/bin/sh", "/tmp/x", "__TEXT"])
+        self.assertEqual(ctx["strings"][0]["referenced_by"], ["helper_0", "helper_1"])
+        self.assertEqual([g["label"] for g in ctx["globals"]], ["PTR_s__bin_sh", "unused"])
+        self.assertEqual(ctx["globals"][0]["points_to"], "s_/bin/sh")
+        # big_t is used by a function with syscall findings, so it outranks the more widely used misc_t.
+        self.assertEqual([t["name"] for t in ctx["data_types"]], ["big_t", "misc_t"])
+        self.assertEqual(ctx["schema_version"], 2)
+        self.assertEqual(ctx["truncated"]["full_facts_file"], "sample_facts.json")
+        self.assertEqual(ctx["hardening"]["pie"], True)
+        self.assertEqual(ctx["memory_map"][0]["entropy"], 6.1)
+        helper = next(f for f in ctx["functions"] if f["name"] == "helper_0")
+        self.assertEqual((helper["callers"], helper["signature"]), (["main"], "void helper_0(void)"))
+
+    def test_context_caps_are_reported(self) -> None:
+        limits = ContextLimits(max_strings=1, max_globals=1, max_data_types=1, max_fields_per_type=10, max_indicators=2)
+        ctx = build_context(self.metadata, self.facts, self.findings, limits=limits)
+
+        self.assertEqual(len(ctx["strings"]), 1)
+        self.assertEqual(len(ctx["data_types"][0]["fields"]), 10)
+        self.assertEqual(ctx["data_types"][0]["fields_omitted"], 90)
+        truncated = ctx["truncated"]
+        self.assertEqual(
+            (truncated["strings_omitted"], truncated["globals_omitted"], truncated["data_types_omitted"],
+             truncated["indicators_omitted"]),
+            (2, 1, 1, 3),
+        )
+
+    def test_facts_are_uncapped_with_all_decompiled_code(self) -> None:
+        facts = build_facts(self.metadata, self.facts, self.findings, exploration={"protocol": "mcp"})
+
+        self.assertEqual(len(facts["strings"]), 3)
+        self.assertEqual(len(facts["data_types"][1]["fields"]), 100)
+        self.assertEqual(len(facts["indicators"]), 5)
+        self.assertTrue(all("decompiled" in f for f in facts["functions"]))
+        self.assertEqual(facts["strings"][1]["referenced_by"][0]["ref_type"], "READ")
+        self.assertNotIn("truncated", facts)
+
+    def test_file_format_items_and_empty_strings_stay_out_of_context(self) -> None:
+        self.facts["strings"].append({"address": "00109000", "value": "__LINKEDIT", "origin": "file_format"})
+        self.facts["strings"].append({"address": "00102030", "value": "", "origin": "program"})
+        self.facts["data_types"].append({"name": "mach_header", "kind": "struct", "origin": "file_format"})
+        ctx = build_context(self.metadata, self.facts, self.findings)
+
+        self.assertNotIn("__LINKEDIT", [s["value"] for s in ctx["strings"]])
+        self.assertNotIn("", [s["value"] for s in ctx["strings"]])
+        self.assertNotIn("mach_header", [t["name"] for t in ctx["data_types"]])
+        self.assertEqual(ctx["truncated"]["file_format_omitted"]["strings"], 1)
+        self.assertEqual(ctx["truncated"]["file_format_omitted"]["data_types"], 1)
+        self.assertEqual(ctx["truncated"]["empty_strings_omitted"], 1)
+        self.assertEqual(len(build_facts(self.metadata, self.facts, self.findings)["strings"]), 5)
+
+    def test_missing_sections_default_empty(self) -> None:
+        ctx = build_context(self.metadata, make_facts(), self.findings)
+        for key in ("globals", "data_types", "indicators", "memory_map"):
+            self.assertEqual(ctx[key], [])
+        self.assertEqual(ctx["hardening"], {})
 
 
 if __name__ == "__main__":

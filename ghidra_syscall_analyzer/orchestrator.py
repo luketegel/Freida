@@ -18,6 +18,12 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+from ghidra_syscall_analyzer.binary_insights import (
+    callers_by_function,
+    classify_origins,
+    extract_indicators,
+    hardening,
+)
 from ghidra_syscall_analyzer.mcp_client import GhidraMCPClient, MCPError
 from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
 from ghidra_syscall_analyzer.syscall_detector import SyscallFinding, SyscallDetector
@@ -231,10 +237,20 @@ class HeadlessOrchestrator:
 
         if isinstance(client, PyGhidraCollector):
             self.facts = client.facts
+        self._add_insights()
         self.exploration = self._describe_exploration(client)
 
         logger.info("Analysis complete: detected %d system calls across target.", len(self.findings))
         return self.metadata, self.findings
+
+    def _add_insights(self) -> None:
+        """Derives callers, origins, indicators and hardening from the collected facts and the file header."""
+        callers = callers_by_function(self.facts.get("functions", []))
+        for fn in self.facts.get("functions", []):
+            fn["callers"] = callers.get(fn.get("name"), [])
+        classify_origins(self.facts)
+        self.facts["indicators"] = extract_indicators(self.facts.get("strings", []))
+        self.facts["hardening"] = hardening(self.target_path, self.facts)
 
     def _describe_exploration(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> Dict[str, Any]:
         """Tells the model how to reach a Ghidra MCP server for deeper exploration."""
