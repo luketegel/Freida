@@ -9,7 +9,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 ## 🚀 Key Features
 
 * **PyGhidra Headless Collection (default):** Loads the target in-process with PyGhidra, runs Ghidra auto-analysis, and extracts program metadata, imports/exports, every function with its callsites, decompiled C, and defined strings, without ever launching the Ghidra GUI.
-* **Model Context and Facts:** Writes `<target>_context.json`, a compact, address-annotated summary sized for a model's context window, and `<target>_facts.json` with everything uncapped: strings and global data with cross-references, data types, memory map with entropy, hardening, indicators, function signatures and callers.
+* **Model Context and Facts:** Writes `binary_context.json`, a compact, address-annotated summary sized for a model's context window, and `binary_facts.json` with everything uncapped: strings and global data with cross-references, data types, memory map with entropy, hardening, indicators, function signatures and callers.
 * **Ghidra MCP Backend (optional):** Can instead drive a Ghidra MCP server (JSON-RPC 2.0 over `stdio` or HTTP) with `--backend mcp`, `--mcp-cmd`, or `--server-url`.
 * **Multi-Format Support:**
   * **Linux:** ELF 32/64-bit binaries.
@@ -63,7 +63,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
              v
    +--------------------+   +----------------------+
    |   Markdown Report  |   | Model Context Bundle |
-   | (*_syscalls.md)    |   | (*_context.json)     |
+   | (*_syscalls.md)    |   | (binary_context.json)|
    +--------------------+   +----------------------+
 ```
 
@@ -146,8 +146,8 @@ python3 analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary \
 | `target` | Path to the executable (ELF, PE, Mach-O). |
 | `-b, --binary` | Explicit flag to specify the target path. |
 | `-o, --output` | Output Markdown report file path (default: `<target>_syscalls.md`). |
-| `--context-out` | Output model context JSON path (default: `<target>_context.json`). |
-| `--facts-out` | Output full, uncapped facts JSON path (default: `<target>_facts.json`). |
+| `--context-out` | Output model context JSON path (default: `binary_context.json`). |
+| `--facts-out` | Output full, uncapped facts JSON path (default: `binary_facts.json`). |
 | `--backend` | `pyghidra` (default) or `mcp` (implied by `--mcp-cmd` / `--server-url`). |
 | `--mcp-cmd` | Custom command to spawn a headless Ghidra MCP server (`{binary}` is replaced with the target path). |
 | `--server-url` | URL of a running Ghidra MCP server (e.g. `http://127.0.0.1:8081`). |
@@ -176,8 +176,8 @@ Each report contains:
 
 Each real run writes two JSON files for an AI model analyzing the binary:
 
-* **`<target>_context.json`**: the starting context, sized for a model's context window. Sections are relevance-ranked and capped, and file-format metadata that no code uses (load commands, symbol and string tables, loader structures) is left out; `truncated` lists exactly what was cut and names the facts file.
-* **`<target>_facts.json`**: everything collected, uncapped, including full decompiled code for every function and up to 50 cross-references per string or global. Strings, globals, data types and indicators carry `origin`: `program` or `file_format`.
+* **`binary_context.json`**: the starting context, sized for a model's context window. Sections are relevance-ranked and capped, and file-format metadata that no code uses (load commands, symbol and string tables, loader structures) is left out; `truncated` lists exactly what was cut and names the facts file.
+* **`binary_facts.json`**: everything collected, uncapped, including full decompiled code for every function and up to 50 cross-references per string or global. Strings, globals, data types and indicators carry `origin`: `program` or `file_format`.
 
 | Key | Contents |
 | :--- | :--- |
@@ -203,12 +203,14 @@ Each real run writes two JSON files for an AI model analyzing the binary:
 
 ```bash
 export GEMINI_API_KEY=...            # create one at https://aistudio.google.com/apikey
-python analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary --context-out sample_binary_context.json --facts-out sample_binary_facts.json
-freida-report sample_binary_context.json --dry-run    # estimate only, no generation
-freida-report sample_binary_context.json              # writes sample_binary_overview.md / .json
+python analyze_syscalls.py /path/to/any_binary     # writes binary_context.json + binary_facts.json
+freida-report --dry-run                             # estimate only, no generation
+freida-report                                       # writes binary_overview.md / .json
 ```
 
-Each run prints an **estimated cost** before generating (exact input size via Gemini's free `countTokens`) and the **actual cost** afterwards (from the API's usage data); both are recorded in `<target>_overview.json` and the report footer. `--max-cost` (default $1.00) refuses runs whose worst-case estimate is higher and stops tool use if the spend approaches it.
+Each analysis overwrites `binary_context.json` / `binary_facts.json`; to keep several, pass `--context-out` / `--facts-out` (e.g. `mybin_context.json`) and then `freida-report mybin_context.json`, which picks up `mybin_facts.json` and writes `mybin_overview.md`.
+
+Each run prints an **estimated cost** before generating (exact input size via Gemini's free `countTokens`) and the **actual cost** afterwards (from the API's usage data); both are recorded in `binary_overview.json` and the report footer. `--max-cost` (default $1.00) refuses runs whose worst-case estimate is higher and stops tool use if the spend approaches it.
 
 **Estimated cost per run, default model `gemini-3.6-flash`** ($1.50 / 1M input, $7.50 / 1M output incl. thinking; list prices, Oct 2026):
 
@@ -222,7 +224,8 @@ Google currently lists a $0.75 / 1M input promotion for gemini-3.6-flash through
 
 | Option | Description |
 | :--- | :--- |
-| `--facts` | Facts JSON for the lookup tools (default: sibling `<target>_facts.json`; without it the model gets no tools). |
+| `context` | Context JSON to report on (default: `binary_context.json`). Pass another path to report on a saved analysis. |
+| `--facts` | Facts JSON for the lookup tools (default: the matching `*_facts.json`, e.g. `binary_facts.json`; without it the model gets no tools). |
 | `--model` | Gemini model (default `gemini-3.6-flash`). |
 | `--max-tool-calls` | Lookup tool budget per run (default `3`). |
 | `--thinking` | `minimal`, `low` (default), `medium`, `high`; higher levels cost more output tokens. |

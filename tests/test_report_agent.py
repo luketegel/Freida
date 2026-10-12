@@ -3,6 +3,7 @@
 import copy
 import io
 import json
+import os
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -207,6 +208,33 @@ class TestCli(AgentTestCase):
             self.assertEqual(data["unverified_evidence"], 1)
             self.assertEqual(data["estimate"]["input_tokens"], 8500)
             self.assertIn("Actual cost: $", out.getvalue())
+
+    def test_defaults_to_binary_context_and_facts_in_current_folder(self) -> None:
+        transport = ScriptedTransport([{"totalTokens": 8500}, text_response(SAMPLE_OVERVIEW)])
+        previous = os.getcwd()
+        with tempfile.TemporaryDirectory() as tmp:
+            Path(tmp, "binary_context.json").write_text(json.dumps(self.context))
+            Path(tmp, "binary_facts.json").write_text(json.dumps(self.facts))
+            os.chdir(tmp)
+            try:
+                out = io.StringIO()
+                with patch("ghidra_syscall_analyzer.report_agent.GeminiClient",
+                           lambda: GeminiClient(api_key="k", transport=transport)), redirect_stdout(out):
+                    code = main([])
+                self.assertEqual(code, 0)
+                self.assertTrue(Path(tmp, "binary_overview.md").exists())
+                self.assertTrue(Path(tmp, "binary_overview.json").exists())
+                self.assertIn("up to 3 tool call(s)", out.getvalue())  # facts found, so tools are enabled
+            finally:
+                os.chdir(previous)
+
+    def test_missing_context_explains_next_step(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            out = io.StringIO()
+            with redirect_stdout(out):
+                code = main([str(Path(tmp) / "binary_context.json")])
+        self.assertEqual(code, 2)
+        self.assertIn("Analyze a binary first", out.getvalue())
 
     def test_max_cost_aborts_before_spending(self) -> None:
         transport = ScriptedTransport([{"totalTokens": 120_000}])

@@ -5,9 +5,8 @@ lookup tools over the facts file (up to a fixed budget) before it writes a
 structured Behavioral Overview. Every run reports its estimated cost up
 front and its actual cost afterwards.
 
-Usage:
-    python -m ghidra_syscall_analyzer.report_agent sample_binary_context.json \\
-        --facts sample_binary_facts.json [--dry-run]
+Usage (after `analyze_syscalls.py <binary>` wrote binary_context.json and binary_facts.json):
+    python -m ghidra_syscall_analyzer.report_agent [--dry-run]
 """
 
 from __future__ import annotations
@@ -439,10 +438,12 @@ def main(argv: Optional[List[str]] = None) -> int:
         prog="freida-report",
         description="Generate a Behavioral Overview of an analyzed binary with Gemini, reporting estimated and actual cost.",
     )
-    parser.add_argument("context", type=Path, help="Model context JSON (<target>_context.json).")
-    parser.add_argument("--facts", type=Path, help="Facts JSON for lookup tools (default: sibling <target>_facts.json).")
-    parser.add_argument("-o", "--output", type=Path, help="Markdown report path (default: <target>_overview.md).")
-    parser.add_argument("--json-out", type=Path, help="Structured result + usage JSON (default: <target>_overview.json).")
+    parser.add_argument("context", type=Path, nargs="?", default=Path("binary_context.json"),
+                        help="Model context JSON (default: binary_context.json, as written by analyze_syscalls.py).")
+    parser.add_argument("--facts", type=Path,
+                        help="Facts JSON for lookup tools (default: the matching *_facts.json, e.g. binary_facts.json).")
+    parser.add_argument("-o", "--output", type=Path, help="Markdown report path (default: binary_overview.md).")
+    parser.add_argument("--json-out", type=Path, help="Structured result + usage JSON (default: binary_overview.json).")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Gemini model (default: {DEFAULT_MODEL}).")
     parser.add_argument("--max-tool-calls", type=int, default=DEFAULT_MAX_TOOL_CALLS,
                         help=f"Maximum lookup tool calls per run (default: {DEFAULT_MAX_TOOL_CALLS}).")
@@ -459,6 +460,10 @@ def main(argv: Optional[List[str]] = None) -> int:
 
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
+
+    if not args.context.exists():
+        print(f"[!] {args.context} not found. Analyze a binary first: python analyze_syscalls.py /path/to/binary")
+        return 2
 
     try:
         context = json.loads(args.context.read_text(encoding="utf-8"))
