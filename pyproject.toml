@@ -33,5 +33,9 @@ ghidra-syscall-analyzer = "ghidra_syscall_analyzer.cli:main"
 freida-report = "ghidra_syscall_analyzer.report_agent:main"
 freida-web = "ghidra_syscall_analyzer.webui.server:main"
 
+# Package only the analyzer, not other folders in the checkout (e.g. freida_web_jobs/, tests/).
+[tool.setuptools.packages.find]
+include = ["ghidra_syscall_analyzer*"]
+
 [tool.setuptools.package-data]
 ghidra_syscall_analyzer = ["webui/static/*"]
