@@ -10,3 +10,5 @@ hs_err_pid*.log
 # Generated model context bundles and facts
 *_context.json
 *_facts.json
+*_overview.json
+*_overview.md

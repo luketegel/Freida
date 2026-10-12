@@ -18,6 +18,10 @@ from ghidra_syscall_analyzer.orchestrator import BACKENDS, HeadlessOrchestrator
 from ghidra_syscall_analyzer.report_generator import MarkdownReportGenerator
 from ghidra_syscall_analyzer.syscall_detector import SyscallDetector, SyscallFinding
 
+# Fixed names so `freida-report` finds the latest analysis without arguments.
+DEFAULT_CONTEXT_FILE = Path("binary_context.json")
+DEFAULT_FACTS_FILE = Path("binary_facts.json")
+
 logger = logging.getLogger("ghidra_syscall_analyzer")
 
 
@@ -123,12 +127,12 @@ def main(argv: Optional[list[str]] = None) -> int:
     parser.add_argument(
         "--context-out",
         type=Path,
-        help="Path to output model context JSON (default: <target_name>_context.json).",
+        help="Path to output model context JSON (default: binary_context.json).",
     )
     parser.add_argument(
         "--facts-out",
         type=Path,
-        help="Path to output the full, uncapped facts JSON (default: <target_name>_facts.json).",
+        help="Path to output the full, uncapped facts JSON (default: binary_facts.json).",
     )
     parser.add_argument(
         "--backend",
@@ -204,8 +208,8 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     # Default output paths
     output_path = args.output or Path(f"{target_path.stem}_syscalls.md")
-    context_path = args.context_out or Path(f"{target_path.stem}_context.json")
-    facts_path = args.facts_out or Path(f"{target_path.stem}_facts.json")
+    context_path = args.context_out or DEFAULT_CONTEXT_FILE
+    facts_path = args.facts_out or DEFAULT_FACTS_FILE
 
     if args.mock_dry_run:
         written_path = run_mock_analysis(target_path, output_path)
