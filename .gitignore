@@ -13,3 +13,6 @@ hs_err_pid*.log
 *_overview.json
 *_overview.md
 *_overview.pdf
+
+# Web UI uploads and reports
+freida_web_jobs/

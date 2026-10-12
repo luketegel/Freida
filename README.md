@@ -24,6 +24,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
   * **Windows NT Native Syscalls & Win32:** Detects `Nt*` / `Zw*` native system calls (`NtCreateFile`, `NtAllocateVirtualMemory`, `NtCreateThreadEx`) and Win32 wrappers (`CreateProcess`, `VirtualAllocEx`, `WriteProcessMemory`).
   * **macOS Mach Traps:** Recognizes Mach kernel messages and traps (`mach_msg_trap`, `vm_allocate`, `task_for_pid`); Mach-O's leading underscores (`_open`) are handled.
 * **Rich Markdown Reporting:** Outputs an executive-ready Markdown report complete with target metadata, cryptographic hashes, visual category distribution bars, severity categorization, callsite inventory tables, and decompiled code evidence snippets.
+* **Local Web UI:** `freida-web` serves a browser page on `localhost` to upload a program, choose options, follow the run, and read the reports.
 * **Clean PDF Reports:** Every Markdown report (the syscall report and the AI Behavioral Overview) is also written as a printable PDF with severity colors, distribution bars, paginated tables and code listings, ready to share with people who don't read Markdown.
 
 ---
@@ -353,6 +354,40 @@ An empty list means the model answered from the context alone. If it regularly u
 | `Gemini API error 400: …` | The request was rejected; run with `-v` and report the message. |
 
 > **Data use:** on the free tier, Google may use prompts and responses to improve its products; with billing enabled (paid tier) it does not. Use a billing-enabled key for proprietary or sensitive binaries. Local file paths are stripped from the prompt.
+
+---
+
+## 🌐 Web UI
+
+`freida-web` starts a small web server on your machine with a page where you upload a program, pick the options, and read the results, no command line needed.
+
+```bash
+source .venv/bin/activate
+uv pip install -e .
+export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
+freida-web --open
+```
+
+It prints `Freida web UI running at http://localhost:8765/`; `--open` opens it in your browser. Without installing, run `python -m ghidra_syscall_analyzer.webui.server`. Press `Ctrl+C` to stop.
+
+In the page:
+
+1. **Program:** drop an executable (ELF, PE, Mach-O) on the upload box, or use the bundled sample binary.
+2. **Options:** the backend (PyGhidra, Ghidra MCP with a launch command or server URL, or Mock to try the reports without Ghidra), Ghidra directory, function limit and timeouts, PDF output, verbose log, and the optional **AI behavioral overview** (model, thinking level, tool-call budget, cost limit, cost-only dry run, and a Gemini API key used for that run only and never saved).
+3. **Analyze:** the run's live log is shown while it works; when it finishes, the syscall report and AI overview are shown rendered, the PDFs open inline, and every output file (Markdown, PDF, context and facts JSON) can be downloaded.
+
+The header shows whether Ghidra, PyGhidra and a Gemini key were found. Each upload is a job stored in `./freida_web_jobs/<id>/` (`input/`, `output/`, `log.txt`), listed under **History** and kept across restarts until you delete it. Jobs run one at a time, each in its own process.
+
+| Option | Description |
+| :--- | :--- |
+| `--host` | Interface to listen on (default `127.0.0.1`, reachable only from this machine). |
+| `--port` | Port (default `8765`; `0` picks a free one). |
+| `--workdir` | Folder for uploads and reports (default `./freida_web_jobs`). |
+| `--max-upload-mb` | Largest accepted upload (default `200`). |
+| `--open` | Open the UI in the default browser. |
+| `-v, --verbose` | Log every request. |
+
+> **Security:** the server runs the analyzer on whatever is uploaded, and the MCP launch command field runs a command on your machine, so keep it on `127.0.0.1`. It rejects requests addressed to other host names and cross-site form posts, and reports are shown escaped, so strings from a hostile binary can't run script in the page. Set `GEMINI_API_KEY` before starting the server to skip entering the key in the page.
 
 ---
 
