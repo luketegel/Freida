@@ -2,6 +2,8 @@
 
 import io
 import json
+import threading
+import time
 import unittest
 from unittest.mock import MagicMock, patch
 
@@ -72,12 +74,46 @@ class TestGhidraMCPClient(unittest.TestCase):
             "id": 1,
             "error": {"code": -32601, "message": "Method not found"},
         })
-        mock_proc.stdout.readline.return_value = error_response + "\n"
+        mock_proc.stdout.readline.side_effect = [error_response + "\n", ""]
         mock_proc.stdin = MagicMock()
 
         with self.assertRaises(MCPError) as ctx:
             client.send_request("non_existent_method")
         self.assertIn("Method not found", str(ctx.exception))
+
+    def test_stdio_request_times_out_when_server_is_silent(self) -> None:
+        client = GhidraMCPClient(cmd=["fake-mcp"], timeout=0.2)
+        mock_proc = MagicMock()
+        client.process = mock_proc
+
+        never_answers = threading.Event()
+
+        def blocking_readline():
+            never_answers.wait(5)
+            return ""
+
+        mock_proc.stdout.readline.side_effect = blocking_readline
+        mock_proc.stdin = MagicMock()
+
+        start = time.monotonic()
+        with self.assertRaises(MCPError) as ctx:
+            client.send_request("tools/list")
+        never_answers.set()
+
+        self.assertIn("Timed out", str(ctx.exception))
+        self.assertLess(time.monotonic() - start, 2.0)
+
+    def test_stdio_reports_closed_stdout(self) -> None:
+        client = GhidraMCPClient(cmd=["fake-mcp"])
+        mock_proc = MagicMock()
+        client.process = mock_proc
+        mock_proc.stdout.readline.side_effect = ["not json\n", ""]
+        mock_proc.poll.return_value = 1
+        mock_proc.stdin = MagicMock()
+
+        with self.assertRaises(MCPError) as ctx:
+            client.send_request("tools/list")
+        self.assertIn("closed stdout", str(ctx.exception))
 
 
 if __name__ == "__main__":

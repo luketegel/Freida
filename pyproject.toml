@@ -16,6 +16,9 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+ghidra = [
+    "pyghidra",
+]
 mcp = [
     "mcp>=1.3.0",
 ]
