@@ -1,4 +1,4 @@
-"""Localhost web server for the Freida web UI.
+"""Localhost web server for the Freida malware analysis web UI.
 
 Serves a single-page UI where a user uploads a binary, picks analysis and
 AI-report options, and reads the resulting reports. Each upload becomes a
@@ -601,7 +601,7 @@ def make_server(host: str, port: int, workdir: Path, max_upload_mb: int = DEFAUL
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    parser = argparse.ArgumentParser(prog="freida-web", description="Run the Freida web UI on a local web server.")
+    parser = argparse.ArgumentParser(prog="freida-web", description="Run the Freida malware analysis web UI on a local web server.")
     parser.add_argument("--host", default=DEFAULT_HOST,
                         help=f"Interface to listen on (default: {DEFAULT_HOST}; only this machine can connect).")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help=f"Port (default: {DEFAULT_PORT}; 0 picks a free one).")
