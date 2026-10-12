@@ -173,6 +173,20 @@ class TestExtendedSections(unittest.TestCase):
         self.assertEqual(facts["strings"][1]["referenced_by"][0]["ref_type"], "READ")
         self.assertNotIn("truncated", facts)
 
+    def test_file_format_items_and_empty_strings_stay_out_of_context(self) -> None:
+        self.facts["strings"].append({"address": "00109000", "value": "__LINKEDIT", "origin": "file_format"})
+        self.facts["strings"].append({"address": "00102030", "value": "", "origin": "program"})
+        self.facts["data_types"].append({"name": "mach_header", "kind": "struct", "origin": "file_format"})
+        ctx = build_context(self.metadata, self.facts, self.findings)
+
+        self.assertNotIn("__LINKEDIT", [s["value"] for s in ctx["strings"]])
+        self.assertNotIn("", [s["value"] for s in ctx["strings"]])
+        self.assertNotIn("mach_header", [t["name"] for t in ctx["data_types"]])
+        self.assertEqual(ctx["truncated"]["file_format_omitted"]["strings"], 1)
+        self.assertEqual(ctx["truncated"]["file_format_omitted"]["data_types"], 1)
+        self.assertEqual(ctx["truncated"]["empty_strings_omitted"], 1)
+        self.assertEqual(len(build_facts(self.metadata, self.facts, self.findings)["strings"]), 5)
+
     def test_missing_sections_default_empty(self) -> None:
         ctx = build_context(self.metadata, make_facts(), self.findings)
         for key in ("globals", "data_types", "indicators", "memory_map"):

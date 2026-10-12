@@ -8,8 +8,9 @@ Two JSON outputs describe an analyzed binary for an AI model:
   strings and global data with cross-references, used data types, and
   indicators.
 - **Context** (`<target>_context.json`): the same sections, relevance-ranked
-  and capped so it fits a model's context window. A `truncated` section lists
-  what was cut and names the facts file holding the rest.
+  and capped so it fits a model's context window, without file-format metadata
+  (loader structures, symbol tables) that no code uses. A `truncated` section
+  lists what was cut and names the facts file holding the rest.
 
 Everything carries an address so the model can request more detail from a
 Ghidra MCP server during later exploration.
@@ -164,6 +165,10 @@ def build_facts(
     return output
 
 
+def _is_file_format(item: Dict[str, Any]) -> bool:
+    return item.get("origin") == "file_format"
+
+
 def _rank_by_references(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Most-referenced first; unreferenced items keep their address order at the end."""
     indexed = list(enumerate(items))
@@ -245,15 +250,23 @@ def build_context(
         candidate["entry"]["decompiled"] = "\n".join(lines)
     decompiled_omitted = [c["entry"]["name"] for c in decompile_candidates[limits.max_decompiled_functions:]]
 
-    all_strings = facts.get("strings", [])
+    # File-format metadata (loader structures, symbol tables) stays in the facts file only.
+    file_format_omitted = {
+        section: sum(1 for item in facts.get(section, []) if _is_file_format(item))
+        for section in ("strings", "globals", "data_types", "indicators")
+    }
+
+    all_strings = [s for s in facts.get("strings", []) if not _is_file_format(s)]
+    empty_strings = sum(1 for s in all_strings if not s.get("value"))
+    all_strings = [s for s in all_strings if s.get("value")]
     strings_out = [_compact_string(s, limits) for s in _rank_by_references(all_strings)[: limits.max_strings]]
 
-    all_globals = facts.get("globals", [])
+    all_globals = [g for g in facts.get("globals", []) if not _is_file_format(g)]
     globals_out = [_compact_global(g, limits) for g in _rank_by_references(all_globals)[: limits.max_globals]]
 
     # Types used by functions with syscall findings first, then by how widely they are used.
     flagged_functions = set(findings_by_function)
-    all_types = facts.get("data_types", [])
+    all_types = [t for t in facts.get("data_types", []) if not _is_file_format(t)]
     ranked_types = sorted(
         enumerate(all_types),
         key=lambda pair: (
@@ -264,7 +277,7 @@ def build_context(
     )
     types_out = [_compact_type(t, limits) for _, t in ranked_types[: limits.max_data_types]]
 
-    all_indicators = facts.get("indicators", [])
+    all_indicators = [i for i in facts.get("indicators", []) if not _is_file_format(i)]
     indicators_out = all_indicators[: limits.max_indicators]
 
     collection_limits = facts.get("limits", {})
@@ -287,6 +300,8 @@ def build_context(
             "data_types_omitted": max(len(all_types) - len(types_out), 0),
             "data_types_collection_capped": bool(collection_limits.get("data_types_truncated", False)),
             "indicators_omitted": max(len(all_indicators) - len(indicators_out), 0),
+            "empty_strings_omitted": empty_strings,
+            "file_format_omitted": file_format_omitted,
             "full_facts_file": facts_file,
             "note": "Everything cut here is in full_facts_file; use the exploration server for anything beyond it.",
         },

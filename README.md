@@ -176,8 +176,8 @@ Each report contains:
 
 Each real run writes two JSON files for an AI model analyzing the binary:
 
-* **`<target>_context.json`**: the starting context, sized for a model's context window. Sections are relevance-ranked and capped; `truncated` lists exactly what was cut and names the facts file.
-* **`<target>_facts.json`**: everything collected, uncapped, including full decompiled code for every function and up to 50 cross-references per string or global.
+* **`<target>_context.json`**: the starting context, sized for a model's context window. Sections are relevance-ranked and capped, and file-format metadata that no code uses (load commands, symbol and string tables, loader structures) is left out; `truncated` lists exactly what was cut and names the facts file.
+* **`<target>_facts.json`**: everything collected, uncapped, including full decompiled code for every function and up to 50 cross-references per string or global. Strings, globals, data types and indicators carry `origin`: `program` or `file_format`.
 
 | Key | Contents |
 | :--- | :--- |

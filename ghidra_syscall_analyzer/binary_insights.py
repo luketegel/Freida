@@ -3,13 +3,15 @@
 Pure-Python analysis over collected facts and the target file itself:
 Shannon entropy, indicators extracted from strings (URLs, IPs, paths,
 registry keys, commands), executable hardening signals parsed from
-ELF / Mach-O / PE headers, and the reverse call graph.
+ELF / Mach-O / PE headers, the reverse call graph, and tagging of
+file-format metadata (loader structures, symbol tables) versus program content.
 
 Nothing here needs Ghidra, so every function can be unit-tested directly.
 """
 
 from __future__ import annotations
 
+import bisect
 import collections
 import math
 import re
@@ -28,7 +30,7 @@ def shannon_entropy(data: bytes) -> float:
         return 0.0
     counts = collections.Counter(data)
     total = len(data)
-    return -sum((c / total) * math.log2(c / total) for c in counts.values())
+    return abs(-sum((c / total) * math.log2(c / total) for c in counts.values()))
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +85,7 @@ def extract_indicators(strings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             "value": value,
             "string_address": s.get("address"),
             "referenced_by": _function_names(s.get("referenced_by", [])),
+            "origin": s.get("origin", "program"),
         })
 
     for s in strings:
@@ -97,6 +100,103 @@ def extract_indicators(strings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
             add("command", text.strip(), s)
 
     return indicators
+
+
+# ---------------------------------------------------------------------------
+# File-format metadata vs. program content
+# ---------------------------------------------------------------------------
+
+# Ghidra data type categories created by the executable loaders.
+LOADER_TYPE_CATEGORIES = {"MachO", "Mach-O", "ELF", "PE", "COFF"}
+
+# Blocks holding loader / linker / unwind metadata rather than program data.
+METADATA_SECTIONS = {
+    # Mach-O
+    "__LINKEDIT", "__unwind_info", "__eh_frame",
+    # ELF
+    "_elfHeader", "_elfProgramHeaders", "_elfSectionHeaders", ".dynsym", ".dynstr", ".symtab", ".strtab",
+    ".shstrtab", ".gnu.hash", ".hash", ".gnu.version", ".gnu.version_r", ".gnu.version_d", ".rela.dyn",
+    ".rela.plt", ".rel.dyn", ".rel.plt", ".note.gnu.build-id", ".note.ABI-tag", ".note.gnu.property",
+    ".eh_frame", ".eh_frame_hdr", ".gnu_debuglink", ".comment",
+    # PE
+    "Headers", ".reloc",
+}
+
+
+def _int_address(address: Any) -> Optional[int]:
+    try:
+        return int(str(address).split(":")[-1], 16)
+    except ValueError:
+        return None
+
+
+def _type_category(path: Optional[str]) -> str:
+    parts = str(path or "").strip("/").split("/")
+    return parts[0] if len(parts) > 1 else ""
+
+
+def classify_origins(facts: Dict[str, Any]) -> Dict[str, int]:
+    """Tags data types, globals and strings with origin "file_format" or "program".
+
+    File-format items describe the executable's own layout (load commands, symbol
+    and string tables, fixups) and are not used by any code; everything a function
+    references counts as program content. Returns per-section file-format counts.
+    """
+    loader_type_names = set()
+    for t in facts.get("data_types", []):
+        is_loader_type = _type_category(t.get("path")) in LOADER_TYPE_CATEGORIES
+        if is_loader_type:
+            loader_type_names.add(t.get("name"))
+        function_users = [u for u in t.get("used_by", []) if not str(u).startswith("data:")]
+        t["origin"] = "file_format" if is_loader_type and not function_users else "program"
+
+    ranges = []
+    for g in facts.get("globals", []):
+        is_metadata = not g.get("referenced_by") and (
+            g.get("type") in loader_type_names or g.get("section") in METADATA_SECTIONS
+        )
+        g["origin"] = "file_format" if is_metadata else "program"
+        start = _int_address(g.get("address"))
+        if is_metadata and start is not None:
+            ranges.append((start, start + max(int(g.get("size") or 0), 1)))
+    ranges.sort()
+    starts = [r[0] for r in ranges]
+
+    # Blocks holding only file-format data (e.g. the Mach-O load-command header) are metadata as a whole,
+    # which also covers strings stored just past a structure, like a dylib_command's library path.
+    blocks = [(_int_address(b.get("start")), _int_address(b.get("end"))) for b in facts.get("memory_map", [])]
+
+    def block_of(address: Optional[int]) -> Optional[int]:
+        if address is None:
+            return None
+        for index, (start, end) in enumerate(blocks):
+            if start is not None and end is not None and start <= address <= end:
+                return index
+        return None
+
+    blocks_with_metadata = {block_of(_int_address(g.get("address"))) for g in facts.get("globals", [])
+                            if g["origin"] == "file_format"}
+    blocks_with_program = {block_of(_int_address(g.get("address"))) for g in facts.get("globals", [])
+                           if g["origin"] == "program"}
+    blocks_with_program |= {block_of(_int_address(f.get("address"))) for f in facts.get("functions", [])}
+    metadata_blocks = (blocks_with_metadata - blocks_with_program) - {None}
+
+    for s in facts.get("strings", []):
+        inside_metadata = False
+        address = _int_address(s.get("address"))
+        if address is not None and ranges:
+            i = bisect.bisect_right(starts, address) - 1
+            inside_metadata = i >= 0 and address < ranges[i][1]
+        in_metadata_block = block_of(address) in metadata_blocks
+        is_metadata = not s.get("referenced_by") and (
+            inside_metadata or in_metadata_block or s.get("section") in METADATA_SECTIONS
+        )
+        s["origin"] = "file_format" if is_metadata else "program"
+
+    return {
+        section: sum(1 for item in facts.get(section, []) if item.get("origin") == "file_format")
+        for section in ("strings", "globals", "data_types")
+    }
 
 
 # ---------------------------------------------------------------------------

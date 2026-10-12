@@ -9,6 +9,7 @@ from pathlib import Path
 
 from ghidra_syscall_analyzer.binary_insights import (
     callers_by_function,
+    classify_origins,
     extract_indicators,
     hardening,
     header_hardening,
@@ -168,6 +169,60 @@ class TestCombinedHardening(unittest.TestCase):
         self.assertFalse(result["stack_canary"])
         self.assertIsNone(result["rwx_sections"])
         self.assertIsNone(result["stripped"])
+
+
+class TestOriginClassification(unittest.TestCase):
+
+    def facts(self):
+        ref = [{"function": "main", "at": "2010"}]
+        return {
+            "memory_map": [
+                {"name": "__TEXT", "start": "1000", "end": "13ff"},
+                {"name": "__text", "start": "1400", "end": "1fff"},
+                {"name": "__cstring", "start": "2000", "end": "20ff"},
+                {"name": "__LINKEDIT", "start": "8000", "end": "8fff"},
+            ],
+            "functions": [{"name": "main", "address": "1400"}],
+            "data_types": [
+                {"name": "dylib_command", "path": "/MachO/dylib_command", "used_by": ["data:1020"]},
+                {"name": "mach_header", "path": "/MachO/mach_header", "used_by": ["data:1000", "parse_self"]},
+                {"name": "sockaddr", "path": "/socket.h/sockaddr", "used_by": ["main"]},
+            ],
+            "globals": [
+                {"address": "1000", "type": "mach_header", "size": 32, "section": "__TEXT", "referenced_by": []},
+                {"address": "1020", "type": "dylib_command", "size": 24, "section": "__TEXT", "referenced_by": []},
+                {"address": "8000", "type": "uleb128", "size": 1, "section": "__LINKEDIT", "referenced_by": []},
+                {"address": "8010", "type": "dword", "size": 4, "section": "__LINKEDIT", "referenced_by": ref},
+                {"address": "2080", "type": "pointer", "size": 8, "section": "__cstring", "referenced_by": []},
+            ],
+            "strings": [
+                {"address": "1028", "value": "__TEXT", "section": "__TEXT", "referenced_by": []},
+                {"address": "1038", "value": "/usr/lib/libSystem.B.dylib", "section": "__TEXT", "referenced_by": []},
+                {"address": "8100", "value": "_open", "section": "__LINKEDIT", "referenced_by": []},
+                {"address": "2000", "value": "/bin/ls", "section": "__cstring", "referenced_by": ref},
+                {"address": "2010", "value": "-la", "section": "__cstring", "referenced_by": []},
+            ],
+        }
+
+    def test_tags_loader_metadata_and_keeps_program_content(self) -> None:
+        facts = self.facts()
+        counts = classify_origins(facts)
+
+        origin = lambda section: [x["origin"] for x in facts[section]]
+        # mach_header is used by a function, so it stays program content.
+        self.assertEqual(origin("data_types"), ["file_format", "program", "program"])
+        # Referenced LINKEDIT data and program pointers are program content.
+        self.assertEqual(origin("globals"), ["file_format", "file_format", "file_format", "program", "program"])
+        # The library path sits just past its struct but inside the header-only block.
+        self.assertEqual(origin("strings"), ["file_format", "file_format", "file_format", "program", "program"])
+        self.assertEqual(counts, {"strings": 3, "globals": 3, "data_types": 1})
+
+    def test_indicators_inherit_string_origin(self) -> None:
+        facts = self.facts()
+        classify_origins(facts)
+        origins = {i["value"]: i["origin"] for i in extract_indicators(facts["strings"])}
+        self.assertEqual(origins["/usr/lib/libSystem.B.dylib"], "file_format")
+        self.assertEqual(origins["/bin/ls"], "program")
 
 
 if __name__ == "__main__":
