@@ -1,6 +1,6 @@
 """Command-Line Interface for Ghidra Syscall Analyzer.
 
-Enables automated, headless decompilation of executables and applets
+Enables automated, headless decompilation of native executables
 via Ghidra MCP to extract system calls into Markdown reports.
 """
 
@@ -13,7 +13,8 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from ghidra_syscall_analyzer.orchestrator import HeadlessOrchestrator
+from ghidra_syscall_analyzer.context_builder import build_context, write_context
+from ghidra_syscall_analyzer.orchestrator import BACKENDS, HeadlessOrchestrator
 from ghidra_syscall_analyzer.report_generator import MarkdownReportGenerator
 from ghidra_syscall_analyzer.syscall_detector import SyscallDetector, SyscallFinding
 
@@ -41,7 +42,7 @@ def run_mock_analysis(target_path: Path, output_file: Path) -> Path:
         "architecture": "x86:LE:64:default",
         "ghidra_program_name": target_path.name,
         "analysis_time": "2026-10-12 10:00:00 UTC",
-        "ghidra_mcp_headless": True,
+        "backend": "mock",
         "functions_decompiled": 4,
     }
 
@@ -98,26 +99,37 @@ def run_mock_analysis(target_path: Path, output_file: Path) -> Path:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ghidra-syscall-analyzer",
-        description="Decompiles an executable or applet with Ghidra MCP in Headless Mode and reports all system calls in Markdown.",
+        description="Decompiles a native executable with headless Ghidra and reports all system calls in Markdown.",
     )
     parser.add_argument(
         "target",
         nargs="?",
         type=Path,
-        help="Path to the executable or applet to analyze (ELF, PE, Mach-O, JAR, Class).",
+        help="Path to the executable to analyze (ELF, PE, Mach-O).",
     )
     parser.add_argument(
         "-b",
         "--binary",
         type=Path,
         dest="binary_opt",
-        help="Alternative flag to specify the target executable or applet path.",
+        help="Alternative flag to specify the target executable path.",
     )
     parser.add_argument(
         "-o",
         "--output",
         type=Path,
         help="Path to output Markdown file (default: <target_name>_syscalls.md).",
+    )
+    parser.add_argument(
+        "--context-out",
+        type=Path,
+        help="Path to output model context JSON (default: <target_name>_context.json).",
+    )
+    parser.add_argument(
+        "--backend",
+        choices=BACKENDS,
+        help="Analysis backend: 'pyghidra' (in-process headless Ghidra, default) or 'mcp' "
+        "(implied by --server-url / --mcp-cmd).",
     )
     parser.add_argument(
         "--mcp-cmd",
@@ -151,6 +163,17 @@ def main(argv: Optional[list[str]] = None) -> int:
         help="Timeout in seconds for decompilation queries (default: 120.0s).",
     )
     parser.add_argument(
+        "--max-functions",
+        type=int,
+        help="Maximum number of functions to collect with the pyghidra backend (default: all).",
+    )
+    parser.add_argument(
+        "--decompile-timeout",
+        type=int,
+        default=60,
+        help="Per-function decompilation timeout in seconds for the pyghidra backend (default: 60).",
+    )
+    parser.add_argument(
         "--mock-dry-run",
         action="store_true",
         help="Run simulated decompilation & report generation to test without Ghidra installed.",
@@ -167,15 +190,16 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     target_file = args.binary_opt or args.target
     if not target_file:
-        parser.error("A target executable or applet path is required.")
+        parser.error("A target executable path is required.")
 
     target_path = Path(target_file).resolve()
     if not target_path.exists():
         logger.error("Target file not found: %s", target_path)
         return 1
 
-    # Default output path
+    # Default output paths
     output_path = args.output or Path(f"{target_path.stem}_syscalls.md")
+    context_path = args.context_out or Path(f"{target_path.stem}_context.json")
 
     if args.mock_dry_run:
         written_path = run_mock_analysis(target_path, output_path)
@@ -191,6 +215,9 @@ def main(argv: Optional[list[str]] = None) -> int:
             project_dir=args.project_dir,
             extension_jar=args.extension_jar,
             timeout=args.timeout,
+            backend=args.backend,
+            max_functions=args.max_functions,
+            decompile_timeout=args.decompile_timeout,
         )
 
         metadata, findings = orchestrator.run_analysis()
@@ -200,8 +227,16 @@ def main(argv: Optional[list[str]] = None) -> int:
             decompiled_functions=orchestrator.decompiled_functions,
         )
         written_path = report_generator.write_to_file(output_path)
-        print(f"\n[+] Success! Decompiled target in Headless Ghidra MCP and extracted {len(findings)} system call(s).")
-        print(f"[+] Markdown report generated at:\n    {written_path}\n")
+        context = build_context(
+            metadata=metadata,
+            facts=orchestrator.facts,
+            findings=findings,
+            exploration=orchestrator.exploration,
+        )
+        context_written = write_context(context, context_path)
+        print(f"\n[+] Success! Decompiled target with headless Ghidra ({orchestrator.backend}) and extracted {len(findings)} system call(s).")
+        print(f"[+] Markdown report generated at:\n    {written_path}")
+        print(f"[+] Model context bundle generated at:\n    {context_written}\n")
         return 0
 
     except Exception as e:

@@ -1,6 +1,6 @@
 """Ghidra Syscall Analyzer package.
 
-A tool to decompile executables and applets using Ghidra MCP in headless mode
+A tool to decompile native executables using headless Ghidra
 and detect all system calls, generating a comprehensive Markdown report.
 """
 

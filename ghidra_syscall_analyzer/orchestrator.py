@@ -10,6 +10,7 @@ from __future__ import annotations
 import hashlib
 import logging
 import os
+import shlex
 import shutil
 import sys
 import tempfile
@@ -18,6 +19,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from ghidra_syscall_analyzer.mcp_client import GhidraMCPClient, MCPError
+from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
 from ghidra_syscall_analyzer.syscall_detector import SyscallFinding, SyscallDetector
 
 logger = logging.getLogger("ghidra_syscall_analyzer.orchestrator")
@@ -30,6 +32,14 @@ TARGET_INFO_DEFAULT: Dict[str, Any] = {
     "md5": "",
     "file_type": "Unknown",
 }
+
+BACKENDS = ("pyghidra", "mcp")
+
+UNSUPPORTED_SUFFIXES = {".class", ".jar", ".war"}
+
+# Default headless Ghidra MCP server used for exploration and the `mcp` backend.
+DEFAULT_MCP_PACKAGE = "ghidra-mcp[headless] @ git+https://github.com/LaurieWired/GhidraMCP"
+DEFAULT_MCP_EXECUTABLE = "ghidra-mcp"
 
 
 def compute_file_hashes(file_path: Path) -> Tuple[str, str, int]:
@@ -48,13 +58,8 @@ def compute_file_hashes(file_path: Path) -> Tuple[str, str, int]:
 
 
 def detect_file_type(file_path: Path) -> str:
-    """Detects binary or applet file format from magic bytes and extensions."""
+    """Detects the executable format from magic bytes."""
     suffix = file_path.suffix.lower()
-    if suffix in [".jar", ".war"]:
-        return "Java Archive (Applet / JAR)"
-    if suffix == ".class":
-        return "Java Bytecode Class (Applet)"
-
     try:
         with open(file_path, "rb") as f:
             magic = f.read(16)
@@ -64,18 +69,13 @@ def detect_file_type(file_path: Path) -> str:
             if magic.startswith(b"MZ"):
                 return "Windows PE Executable"
             if magic.startswith(b"\xca\xfe\xba\xbe"):
-                # Can be Mach-O Universal or Java class file
-                if suffix == ".class":
-                    return "Java Bytecode Class (Applet)"
-                return "Mach-O Universal Binary / Java Class"
+                return "Mach-O Universal Binary"
             if magic.startswith((b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe")):
                 return "macOS Mach-O Binary"
-            if magic.startswith(b"PK\x03\x04"):
-                return "ZIP / Java JAR Archive"
     except Exception as e:
         logger.debug("Error reading magic bytes: %s", e)
 
-    return f"Executable / Applet ({suffix or 'raw'})"
+    return f"Unknown executable format ({suffix or 'raw'})"
 
 
 class HeadlessOrchestrator:
@@ -90,10 +90,18 @@ class HeadlessOrchestrator:
         project_dir: Optional[Path] = None,
         extension_jar: Optional[Path] = None,
         timeout: float = 120.0,
+        backend: Optional[str] = None,
+        max_functions: Optional[int] = None,
+        decompile_timeout: int = 60,
     ) -> None:
         self.target_path = Path(target_path).resolve()
         if not self.target_path.exists():
-            raise FileNotFoundError(f"Target binary or applet not found: {self.target_path}")
+            raise FileNotFoundError(f"Target binary not found: {self.target_path}")
+        if self.target_path.suffix.lower() in UNSUPPORTED_SUFFIXES:
+            raise ValueError(
+                f"Unsupported target {self.target_path.name}: Java class/JAR files are not supported. "
+                "Freida analyzes native executables (ELF, PE, Mach-O)."
+            )
 
         self.ghidra_install_dir = (
             ghidra_install_dir
@@ -105,11 +113,21 @@ class HeadlessOrchestrator:
         self.project_dir = project_dir
         self.extension_jar = extension_jar
         self.timeout = timeout
+        self.max_functions = max_functions
+        self.decompile_timeout = decompile_timeout
+
+        if backend is None:
+            backend = "mcp" if (server_url or custom_mcp_cmd) else "pyghidra"
+        if backend not in BACKENDS:
+            raise ValueError(f"Unknown backend '{backend}'. Expected one of: {', '.join(BACKENDS)}")
+        self.backend = backend
 
         self.detector = SyscallDetector()
         self.metadata: Dict[str, Any] = {}
         self.findings: List[SyscallFinding] = []
         self.decompiled_functions: Dict[str, str] = {}
+        self.facts: Dict[str, Any] = {}
+        self.exploration: Dict[str, Any] = {}
 
     def collect_target_metadata(self) -> Dict[str, Any]:
         """Gathers hash, size, and type information for the target."""
@@ -125,30 +143,32 @@ class HeadlessOrchestrator:
             "md5": md5,
             "file_type": file_type,
             "analysis_time": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime()),
-            "ghidra_mcp_headless": True,
+            "backend": self.backend,
         }
         return self.metadata
 
     def build_mcp_command(self) -> List[str]:
         """Constructs the command to execute ghidra-mcp in headless mode."""
         if self.custom_mcp_cmd:
-            cmd_str = self.custom_mcp_cmd.replace("{binary}", str(self.target_path))
-            return cmd_str.split()
+            # Split first so a target path containing spaces stays a single argument.
+            return [
+                part.replace("{binary}", str(self.target_path))
+                for part in shlex.split(self.custom_mcp_cmd)
+            ]
 
         # Check if ghidra-mcp CLI is available in PATH or python environment
-        ghidra_mcp_bin = shutil.which("ghidra-mcp")
-        uv_bin = shutil.which("uv") or shutil.which("uvx")
+        ghidra_mcp_bin = shutil.which(DEFAULT_MCP_EXECUTABLE)
+        uvx_bin = shutil.which("uvx")
+        uv_bin = shutil.which("uv")
+        uv_runner = [uvx_bin] if uvx_bin else ([uv_bin, "tool", "run"] if uv_bin else None)
 
-        # Preferred command according to GhidraMCP documentation:
-        # uvx --python 3.13 --from "ghidra-mcp[headless] @ git+https://github.com/LaurieWired/GhidraMCP" ghidra-mcp --headless --binary /path/to/target
-        if uv_bin:
-            cmd = [
-                uv_bin,
+        if uv_runner:
+            cmd = uv_runner + [
                 "--python",
                 "3.13",
                 "--from",
-                "ghidra-mcp[headless] @ git+https://github.com/LaurieWired/GhidraMCP",
-                "ghidra-mcp",
+                DEFAULT_MCP_PACKAGE,
+                DEFAULT_MCP_EXECUTABLE,
                 "--headless",
                 "--binary",
                 str(self.target_path),
@@ -184,9 +204,17 @@ class HeadlessOrchestrator:
         if self.ghidra_install_dir:
             env["GHIDRA_INSTALL_DIR"] = self.ghidra_install_dir
 
-        # Setup client
-        client: Optional[GhidraMCPClient] = None
-        if self.server_url:
+        # Setup backend
+        client: Union[GhidraMCPClient, PyGhidraCollector]
+        if self.backend == "pyghidra":
+            client = PyGhidraCollector(
+                target_path=self.target_path,
+                ghidra_install_dir=self.ghidra_install_dir,
+                project_dir=self.project_dir,
+                max_functions=self.max_functions,
+                decompile_timeout=self.decompile_timeout,
+            )
+        elif self.server_url:
             client = GhidraMCPClient(server_url=self.server_url, env=env, timeout=self.timeout)
         else:
             cmd = self.build_mcp_command()
@@ -196,16 +224,30 @@ class HeadlessOrchestrator:
             client.start()
             self._analyze_via_client(client)
         except Exception as e:
-            logger.error("Error during Ghidra MCP execution: %s", e)
+            logger.error("Error during %s analysis: %s", self.backend, e)
             raise
         finally:
-            if client:
-                client.close()
+            client.close()
+
+        if isinstance(client, PyGhidraCollector):
+            self.facts = client.facts
+        self.exploration = self._describe_exploration(client)
 
         logger.info("Analysis complete: detected %d system calls across target.", len(self.findings))
         return self.metadata, self.findings
 
-    def _analyze_via_client(self, client: GhidraMCPClient) -> None:
+    def _describe_exploration(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> Dict[str, Any]:
+        """Tells the model how to reach a Ghidra MCP server for deeper exploration."""
+        info: Dict[str, Any] = {"protocol": "mcp", "transport": "http" if self.server_url else "stdio"}
+        if self.server_url:
+            info["server_url"] = self.server_url
+        else:
+            info["launch_command"] = self.build_mcp_command()
+        tools = getattr(client, "available_tools", None)
+        info["tools"] = sorted(tools) if tools else []
+        return info
+
+    def _analyze_via_client(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> None:
         """Queries the connected Ghidra MCP client for program info, imports, and decompilation."""
         # 1. Retrieve Program Information
         prog_info = client.get_program_info()
@@ -221,10 +263,8 @@ class HeadlessOrchestrator:
         # 2. Retrieve and Analyze Imported Symbols
         imports = client.list_imports()
         self.metadata["total_imports"] = len(imports)
-        if imports:
-            import_findings = self.detector.analyze_imports(imports, target_arch=target_arch)
-            self.findings.extend(import_findings)
-            logger.info("Detected %d syscalls from import table", len(import_findings))
+        import_findings = self.detector.analyze_imports(imports, target_arch=target_arch) if imports else []
+        logger.info("Detected %d syscalls from import table", len(import_findings))
 
         # 3. Retrieve Function List
         functions = client.list_functions(limit=100)
@@ -236,7 +276,9 @@ class HeadlessOrchestrator:
         for fn in functions:
             fn_name = fn.get("name") if isinstance(fn, dict) else str(fn)
             fn_addr = fn.get("address") if isinstance(fn, dict) else None
+            callsites = fn.get("callsites") if isinstance(fn, dict) else None
 
+            fn_findings: List[SyscallFinding] = []
             code = client.decompile_function(function_name=fn_name, address=fn_addr)
             if code:
                 decompiled_count += 1
@@ -247,8 +289,38 @@ class HeadlessOrchestrator:
                     entry_address=fn_addr,
                     target_arch=target_arch,
                 )
-                self.findings.extend(fn_findings)
+            if callsites:
+                fn_findings = self.detector.analyze_callsites(
+                    function_name=fn_name,
+                    callsites=callsites,
+                    decompiled_findings=fn_findings,
+                    entry_address=fn_addr,
+                    target_arch=target_arch,
+                )
+            self.findings.extend(fn_findings)
+
+        # Report an import only when no call to it was found, so each API call is counted once.
+        called = {f.name for f in self.findings}
+        import_only = [f for f in import_findings if f.name not in called]
+        self.findings = import_only + self.findings
+        logger.info("%d imported syscall APIs have no call site found in decompiled functions", len(import_only))
 
         self.metadata["functions_decompiled"] = decompiled_count
         self.metadata["total_syscall_findings"] = len(self.findings)
         self.metadata["unique_syscalls"] = len(set(f.name for f in self.findings))
+
+        # Facts for the model context bundle; the pyghidra backend replaces these with richer data.
+        self.facts = {
+            "program": prog_info or {},
+            "imports": imports,
+            "exports": [],
+            "functions": [
+                {
+                    "name": fn.get("name") if isinstance(fn, dict) else str(fn),
+                    "address": fn.get("address") if isinstance(fn, dict) else None,
+                    "decompiled": self.decompiled_functions.get(fn.get("name") if isinstance(fn, dict) else str(fn)),
+                }
+                for fn in functions
+            ],
+            "strings": [],
+        }

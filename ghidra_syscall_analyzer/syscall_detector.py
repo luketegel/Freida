@@ -1,14 +1,15 @@
 """Syscall Detection Engine.
 
-Analyzes decompiled C pseudocode, imports, disassembly, and Java applet
-decompilations to identify direct system calls, libc wrappers, Windows NT
-APIs, and Java JVM system invocations.
+Analyzes decompiled C pseudocode, imports, and Ghidra callsites of native
+executables to identify direct system calls, libc wrappers, Windows NT/Win32
+APIs, and macOS Mach traps.
 """
 
 from __future__ import annotations
 
+import collections
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 
@@ -19,7 +20,7 @@ class SyscallFinding:
     category: str
     description: str
     severity: str  # "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
-    detection_type: str  # "DIRECT_SYSCALL", "LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH", "JAVA_SYSTEM"
+    detection_type: str  # "DIRECT_SYSCALL", "LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH"
     function_name: str
     address: Optional[str]
     line_number: int
@@ -27,6 +28,7 @@ class SyscallFinding:
     arguments: str
     syscall_number: Optional[int] = None
     target_arch: Optional[str] = None
+    callsite_address: Optional[str] = None  # exact call instruction address, when known
 
     def to_dict(self) -> Dict[str, Any]:
         return asdict(self)
@@ -547,34 +549,6 @@ WINDOWS_SYSCALL_CATALOG: Dict[str, Tuple[str, str, str, str]] = {
     "recv": ("Networking & Sockets", "Winsock receive data", "MEDIUM", "WIN32_API"),
 }
 
-# Java Applet / JVM System Invocations Catalog
-JAVA_SYSTEM_CATALOG: Dict[str, Tuple[str, str, str]] = {
-    # (Category, Description, Severity)
-    "Runtime.getRuntime().exec": ("Process & Execution", "Execute host operating system command/process", "CRITICAL"),
-    "ProcessBuilder": ("Process & Execution", "Build and launch host OS process", "CRITICAL"),
-    "ProcessBuilder.start": ("Process & Execution", "Start native host process", "CRITICAL"),
-    "System.exit": ("Process & Execution", "Terminate JVM instance", "MEDIUM"),
-    "System.loadLibrary": ("System & Native", "Load native dynamic library (JNI bridge)", "HIGH"),
-    "System.load": ("System & Native", "Load native file path (JNI bridge)", "HIGH"),
-    "System.getProperty": ("System Info & Hardware", "Query host environment properties", "LOW"),
-    "System.getenv": ("System Info & Hardware", "Read host environment variables", "MEDIUM"),
-    "AccessController.doPrivileged": ("Security & Privileges", "Bypass Java Sandbox / Execute with elevated privileges", "CRITICAL"),
-    "Socket": ("Networking & Sockets", "Open TCP socket connection", "HIGH"),
-    "ServerSocket": ("Networking & Sockets", "Bind and listen on TCP port", "HIGH"),
-    "URL.openConnection": ("Networking & Sockets", "Open HTTP/network connection", "MEDIUM"),
-    "HttpURLConnection": ("Networking & Sockets", "HTTP network communication", "MEDIUM"),
-    "DatagramSocket": ("Networking & Sockets", "Open UDP datagram socket", "HIGH"),
-    "File": ("File I/O", "File handle manipulation", "LOW"),
-    "FileInputStream": ("File I/O", "Read raw file stream from host disk", "MEDIUM"),
-    "FileOutputStream": ("File I/O", "Write raw file stream to host disk", "HIGH"),
-    "RandomAccessFile": ("File I/O", "Arbitrary file read/write access", "HIGH"),
-    "Files.readAllBytes": ("File I/O", "Read entire file from disk", "MEDIUM"),
-    "Files.write": ("File I/O", "Write data to disk file", "HIGH"),
-    "Files.delete": ("File I/O", "Delete file on host system", "HIGH"),
-    "Unsafe.allocateMemory": ("Memory Management", "Off-heap unmanaged memory allocation", "HIGH"),
-    "Unsafe.putAddress": ("Memory Management", "Direct raw pointer manipulation", "CRITICAL"),
-}
-
 # macOS / Mach Traps
 MACOS_MACH_CATALOG: Dict[str, Tuple[str, str, str]] = {
     "mach_msg": ("IPC & Signals", "Mach kernel IPC message exchange", "MEDIUM"),
@@ -590,8 +564,33 @@ MACOS_MACH_CATALOG: Dict[str, Tuple[str, str, str]] = {
 }
 
 
+API_DETECTION_TYPES = {"LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH"}
+
+IMPORT_DESCRIPTION_PREFIX = {
+    "LIBC_WRAPPER": "Imported system call wrapper",
+    "WINDOWS_NATIVE": "Imported Windows system API",
+    "WIN32_API": "Imported Windows system API",
+    "MACOS_MACH": "Imported Mach kernel trap",
+}
+
+
+def _is_x86_64(target_arch: Optional[str]) -> bool:
+    """True for x86-64 Ghidra language IDs; unknown architectures keep the x86-64 default."""
+    if not target_arch:
+        return True
+    arch = target_arch.lower()
+    return "x86" in arch and ":64" in arch
+
+
+def _address_key(address: str) -> Tuple[int, Any]:
+    try:
+        return (0, int(address.split(":")[-1], 16))
+    except ValueError:
+        return (1, address)
+
+
 class SyscallDetector:
-    """Detects system calls across decompiled C code, imports, and Java sources."""
+    """Detects system calls across decompiled C code, imports, and callsites."""
 
     def __init__(self) -> None:
         # Regex patterns for direct syscall instructions
@@ -604,6 +603,19 @@ class SyscallDetector:
                 (?:\bint\s+0x80\b) |
                 (?:\bsvc\s+\#?0\b) |
                 (?:\b__syscall\b)
+            )
+            """,
+            re.VERBOSE,
+        )
+
+        # Ghidra decompiler pcode ops for raw syscall instructions:
+        # AArch64 `svc #imm` -> CallSupervisor(imm), x86-64 SYSCALL -> syscall(), x86 INT 0x80 -> swi(0x80)
+        self.pcodeop_syscall_pattern = re.compile(
+            r"""(?x)
+            \b(?:
+                CallSupervisor\s*\([^)]*\) |
+                (?:syscall|sysenter)\s*\(\s*\) |
+                swi\s*\(\s*(?:0x80|0x2e)\s*\)
             )
             """,
             re.VERBOSE,
@@ -628,14 +640,6 @@ class SyscallDetector:
             re.VERBOSE,
         )
 
-        # Pattern for Java Applet / Object invocations: Class.method(args) or obj.method(args)
-        self.java_method_pattern = re.compile(
-            r"""(?ix)
-            \b(?P<target>[a-zA-Z0-9_.]+)\s*\((?P<args>[^;{}]*)\)
-            """,
-            re.VERBOSE,
-        )
-
     def analyze_decompiled_function(
         self,
         function_name: str,
@@ -643,7 +647,7 @@ class SyscallDetector:
         entry_address: Optional[str] = None,
         target_arch: Optional[str] = None,
     ) -> List[SyscallFinding]:
-        """Scans decompiled C or Java code for system calls and returns findings."""
+        """Scans decompiled C code for system calls and returns findings."""
         findings: List[SyscallFinding] = []
         lines = code.splitlines()
 
@@ -652,8 +656,9 @@ class SyscallDetector:
             if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
                 continue
 
-            # 1. Check for Direct Syscall Instructions (inline asm, assembly tokens)
+            # 1. Check for Direct Syscall Instructions (inline asm, assembly tokens, Ghidra pcode ops)
             direct_matches = list(self.direct_asm_pattern.finditer(stripped))
+            direct_matches += list(self.pcodeop_syscall_pattern.finditer(stripped))
             for dm in direct_matches:
                 matched_token = dm.group(0)
                 findings.append(
@@ -692,7 +697,8 @@ class SyscallDetector:
                 except ValueError:
                     pass
 
-                if syscall_nr is not None and syscall_nr in LINUX_X86_64_SYSCALLS:
+                # The number table is x86-64 specific; other architectures number syscalls differently.
+                if syscall_nr is not None and syscall_nr in LINUX_X86_64_SYSCALLS and _is_x86_64(target_arch):
                     syscall_name = LINUX_X86_64_SYSCALLS[syscall_nr]
 
                 cat, desc, sev = SYSCALL_CATALOG.get(
@@ -719,34 +725,12 @@ class SyscallDetector:
 
             # 3. Check for standard POSIX / Libc System Call Wrappers
             for call_match in self.c_call_pattern.finditer(stripped):
-                fn = call_match.group("func")
-                args = call_match.group("args").strip()
-
-                # Match against standard syscall catalog
-                if fn in SYSCALL_CATALOG:
-                    cat, desc, sev = SYSCALL_CATALOG[fn]
+                resolved = self.resolve_api(call_match.group("func"))
+                if resolved:
+                    name, cat, desc, sev, det_type = resolved
                     findings.append(
                         SyscallFinding(
-                            name=fn,
-                            category=cat,
-                            description=desc,
-                            severity=sev,
-                            detection_type="LIBC_WRAPPER",
-                            function_name=function_name,
-                            address=entry_address,
-                            line_number=idx,
-                            code_snippet=stripped,
-                            arguments=args,
-                            target_arch=target_arch,
-                        )
-                    )
-
-                # Match against Windows Native / Win32
-                elif fn in WINDOWS_SYSCALL_CATALOG:
-                    cat, desc, sev, det_type = WINDOWS_SYSCALL_CATALOG[fn]
-                    findings.append(
-                        SyscallFinding(
-                            name=fn,
+                            name=name,
                             category=cat,
                             description=desc,
                             severity=sev,
@@ -755,49 +739,8 @@ class SyscallDetector:
                             address=entry_address,
                             line_number=idx,
                             code_snippet=stripped,
-                            arguments=args,
+                            arguments=call_match.group("args").strip(),
                             target_arch=target_arch,
-                        )
-                    )
-
-                # Match against macOS Mach traps
-                elif fn in MACOS_MACH_CATALOG:
-                    cat, desc, sev = MACOS_MACH_CATALOG[fn]
-                    findings.append(
-                        SyscallFinding(
-                            name=fn,
-                            category=cat,
-                            description=desc,
-                            severity=sev,
-                            detection_type="MACOS_MACH",
-                            function_name=function_name,
-                            address=entry_address,
-                            line_number=idx,
-                            code_snippet=stripped,
-                            arguments=args,
-                            target_arch=target_arch,
-                        )
-                    )
-
-            # 4. Check for Java Applet / JVM System Invocations
-            for java_key, (j_cat, j_desc, j_sev) in JAVA_SYSTEM_CATALOG.items():
-                if java_key in stripped:
-                    # Extract arguments if present
-                    arg_match = re.search(re.escape(java_key) + r"\s*\((.*?)\)", stripped)
-                    args = arg_match.group(1).strip() if arg_match else ""
-                    findings.append(
-                        SyscallFinding(
-                            name=java_key,
-                            category=j_cat,
-                            description=j_desc,
-                            severity=j_sev,
-                            detection_type="JAVA_SYSTEM",
-                            function_name=function_name,
-                            address=entry_address,
-                            line_number=idx,
-                            code_snippet=stripped,
-                            arguments=args,
-                            target_arch=target_arch or "Java/JVM",
                         )
                     )
 
@@ -822,60 +765,106 @@ class SyscallDetector:
 
         for imp in imports:
             name = imp.get("name") or imp.get("symbol") or ""
-            # Strip DLL decoration if present (e.g., KERNEL32.DLL!CreateProcessW)
-            base_name = name.split("!")[-1].split("@")[0].strip()
             address = imp.get("address") or imp.get("entry")
+            resolved = self.resolve_api(name)
+            if not resolved:
+                continue
 
-            if base_name in SYSCALL_CATALOG:
-                cat, desc, sev = SYSCALL_CATALOG[base_name]
-                findings.append(
-                    SyscallFinding(
-                        name=base_name,
-                        category=cat,
-                        description=f"Imported system call wrapper: {desc}",
-                        severity=sev,
-                        detection_type="LIBC_WRAPPER",
-                        function_name="[IMPORT_TABLE]",
-                        address=str(address) if address else None,
-                        line_number=0,
-                        code_snippet=f"Import: {name}",
-                        arguments="",
-                        target_arch=target_arch,
-                    )
+            base_name, cat, desc, sev, det_type = resolved
+            findings.append(
+                SyscallFinding(
+                    name=base_name,
+                    category=cat,
+                    description=f"{IMPORT_DESCRIPTION_PREFIX[det_type]}: {desc}",
+                    severity=sev,
+                    detection_type=det_type,
+                    function_name="[IMPORT_TABLE]",
+                    address=str(address) if address else None,
+                    line_number=0,
+                    code_snippet=f"Import: {name}",
+                    arguments="",
+                    target_arch=target_arch,
                 )
-            elif base_name in WINDOWS_SYSCALL_CATALOG:
-                cat, desc, sev, det_type = WINDOWS_SYSCALL_CATALOG[base_name]
-                findings.append(
-                    SyscallFinding(
-                        name=base_name,
-                        category=cat,
-                        description=f"Imported Windows system API: {desc}",
-                        severity=sev,
-                        detection_type=det_type,
-                        function_name="[IMPORT_TABLE]",
-                        address=str(address) if address else None,
-                        line_number=0,
-                        code_snippet=f"Import: {name}",
-                        arguments="",
-                        target_arch=target_arch,
-                    )
-                )
-            elif base_name in MACOS_MACH_CATALOG:
-                cat, desc, sev = MACOS_MACH_CATALOG[base_name]
-                findings.append(
-                    SyscallFinding(
-                        name=base_name,
-                        category=cat,
-                        description=f"Imported Mach kernel trap: {desc}",
-                        severity=sev,
-                        detection_type="MACOS_MACH",
-                        function_name="[IMPORT_TABLE]",
-                        address=str(address) if address else None,
-                        line_number=0,
-                        code_snippet=f"Import: {name}",
-                        arguments="",
-                        target_arch=target_arch,
-                    )
-                )
+            )
 
         return findings
+
+    def resolve_api(self, raw_name: str) -> Optional[Tuple[str, str, str, str, str]]:
+        """Maps a symbol to (name, category, description, severity, detection_type) if it is a known API.
+
+        Strips namespace/DLL decoration (`KERNEL32.DLL!CreateProcessW`, `lib::open`, `send@16`)
+        and the leading underscores Mach-O adds to C symbols (`_open`, `__exit`).
+        """
+        name = re.split(r"::|!", raw_name)[-1].split("@")[0].strip()
+        for _ in range(3):
+            if name in SYSCALL_CATALOG:
+                cat, desc, sev = SYSCALL_CATALOG[name]
+                return name, cat, desc, sev, "LIBC_WRAPPER"
+            if name in WINDOWS_SYSCALL_CATALOG:
+                cat, desc, sev, det_type = WINDOWS_SYSCALL_CATALOG[name]
+                return name, cat, desc, sev, det_type
+            if name in MACOS_MACH_CATALOG:
+                cat, desc, sev = MACOS_MACH_CATALOG[name]
+                return name, cat, desc, sev, "MACOS_MACH"
+            if not name.startswith("_"):
+                break
+            name = name[1:]
+        return None
+
+    def analyze_callsites(
+        self,
+        function_name: str,
+        callsites: List[Dict[str, Any]],
+        decompiled_findings: List[SyscallFinding],
+        entry_address: Optional[str] = None,
+        target_arch: Optional[str] = None,
+    ) -> List[SyscallFinding]:
+        """Merges Ghidra callsites into a function's findings so API calls carry exact call addresses.
+
+        Callsites are authoritative for which APIs a function calls and where. When the decompiled
+        code shows the same number of calls to an API as there are callsites, they are paired in
+        address/line order to keep arguments and code lines; otherwise each callsite is reported
+        on its own without line details. Decompiled API findings with no callsite are kept.
+        """
+        sites_by_api: Dict[str, List[Tuple[str, Tuple[str, str, str, str, str]]]] = collections.defaultdict(list)
+        for site in sorted(callsites, key=lambda c: _address_key(str(c.get("at", "")))):
+            resolved = self.resolve_api(str(site.get("to") or ""))
+            if resolved and site.get("at"):
+                sites_by_api[resolved[0]].append((str(site["at"]), resolved))
+
+        decompiled_by_api: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
+        merged: List[SyscallFinding] = []
+        for f in decompiled_findings:
+            if f.detection_type in API_DETECTION_TYPES:
+                decompiled_by_api[f.name].append(f)
+            else:
+                merged.append(f)
+
+        for api, sites in sites_by_api.items():
+            hits = sorted(decompiled_by_api.pop(api, []), key=lambda f: f.line_number)
+            if len(hits) == len(sites):
+                merged.extend(replace(hit, callsite_address=at) for (at, _), hit in zip(sites, hits))
+                continue
+            for at, (name, cat, desc, sev, det_type) in sites:
+                merged.append(
+                    SyscallFinding(
+                        name=name,
+                        category=cat,
+                        description=desc,
+                        severity=sev,
+                        detection_type=det_type,
+                        function_name=function_name,
+                        address=entry_address,
+                        line_number=0,
+                        code_snippet=f"call {name} @ {at}",
+                        arguments="",
+                        target_arch=target_arch,
+                        callsite_address=at,
+                    )
+                )
+
+        for leftovers in decompiled_by_api.values():
+            merged.extend(leftovers)
+
+        merged.sort(key=lambda f: (f.line_number == 0, f.line_number, _address_key(f.callsite_address or "")))
+        return merged

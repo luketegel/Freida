@@ -10,9 +10,11 @@ import asyncio
 import json
 import logging
 import os
+import queue
 import subprocess
 import sys
 import threading
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 import urllib.request
 import urllib.error
@@ -41,6 +43,8 @@ class GhidraMCPClient:
         self.timeout = timeout
 
         self.process: Optional[subprocess.Popen[str]] = None
+        self._stdout_queue: "queue.Queue[Optional[str]]" = queue.Queue()
+        self._reader_thread: Optional[threading.Thread] = None
         self._msg_id = 0
         self._lock = threading.Lock()
         self.server_info: Dict[str, Any] = {}
@@ -62,6 +66,7 @@ class GhidraMCPClient:
             )
             # Start background thread to log stderr
             threading.Thread(target=self._log_stderr, daemon=True).start()
+            self._ensure_stdout_reader()
 
         # Perform MCP handshake
         self._initialize()
@@ -74,6 +79,25 @@ class GhidraMCPClient:
             clean = line.strip()
             if clean:
                 logger.debug("[ghidra-mcp stderr] %s", clean)
+
+    def _ensure_stdout_reader(self) -> None:
+        """Starts a background thread that queues stdout lines so reads can time out."""
+        if self._reader_thread is None and self.process and self.process.stdout:
+            self._reader_thread = threading.Thread(target=self._read_stdout, daemon=True)
+            self._reader_thread.start()
+
+    def _read_stdout(self) -> None:
+        """Pushes each stdout line onto the queue; None marks end of stream."""
+        stdout = self.process.stdout if self.process else None
+        try:
+            while stdout is not None:
+                line = stdout.readline()
+                if not line:
+                    break
+                self._stdout_queue.put(line)
+        except (OSError, ValueError):
+            pass
+        self._stdout_queue.put(None)
 
     def _next_id(self) -> int:
         with self._lock:
@@ -102,9 +126,20 @@ class GhidraMCPClient:
             raise MCPError(f"Failed to write to Ghidra MCP stdin: {e}") from e
 
         # Read lines until we get the JSON-RPC response matching msg_id
+        self._ensure_stdout_reader()
+        deadline = time.monotonic() + self.timeout
         while True:
-            line = self.process.stdout.readline()
-            if not line:
+            remaining = deadline - time.monotonic()
+            try:
+                if remaining <= 0:
+                    raise queue.Empty
+                line = self._stdout_queue.get(timeout=remaining)
+            except queue.Empty:
+                raise MCPError(
+                    f"Timed out after {self.timeout:.0f}s waiting for Ghidra MCP response to '{method}'"
+                ) from None
+
+            if line is None:
                 returncode = self.process.poll()
                 raise MCPError(
                     f"Ghidra MCP process closed stdout unexpectedly (exit code: {returncode})"

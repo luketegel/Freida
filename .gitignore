@@ -1,0 +1,11 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+*.egg-info/
+
+# JVM crash logs (e.g. from pyghidra.start())
+hs_err_pid*.log
+
+# Generated model context bundles
+*_context.json

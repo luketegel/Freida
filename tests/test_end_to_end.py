@@ -11,8 +11,8 @@ class TestEndToEnd(unittest.TestCase):
 
     def test_mock_dry_run_cli(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
-            sample_file = Path(tmpdir) / "target_applet.jar"
-            sample_file.write_bytes(b"PK\x03\x04fake_jar_content")
+            sample_file = Path(tmpdir) / "target_binary"
+            sample_file.write_bytes(b"\x7fELF\x02fake_elf_content")
 
             output_md = Path(tmpdir) / "output_report.md"
 
@@ -26,7 +26,7 @@ class TestEndToEnd(unittest.TestCase):
             self.assertTrue(output_md.exists())
 
             content = output_md.read_text(encoding="utf-8")
-            self.assertIn("target_applet.jar", content)
+            self.assertIn("target_binary", content)
             self.assertIn("System Call Analysis Report", content)
             self.assertIn("Analysis Dashboard", content)
             self.assertIn("System Calls Inventory", content)

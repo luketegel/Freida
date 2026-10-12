@@ -13,6 +13,20 @@ from typing import Any, Dict, List, Optional, Union
 
 from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
 
+BACKEND_LABELS = {
+    "pyghidra": "Ghidra Headless (No GUI) | PyGhidra in-process",
+    "mcp": "Ghidra Headless (No GUI) | Model Context Protocol",
+    "mock": "Mock dry run (simulated data, target not decompiled)",
+}
+
+
+def code_cell(value: Any) -> str:
+    """Renders a value as inline code that is safe inside a Markdown table cell."""
+    text = str(value).replace("\n", " ").replace("|", "\\|")
+    if "`" in text:
+        return f"`` {text} ``"
+    return f"`{text}`"
+
 
 class MarkdownReportGenerator:
     """Generates rich Markdown documentation from analysis results."""
@@ -51,25 +65,27 @@ class MarkdownReportGenerator:
 
     def _render_header(self) -> str:
         name = self.metadata.get("file_name", "Target Binary")
+        backend = self.metadata.get("backend", "mcp")
+        mode = BACKEND_LABELS.get(backend, backend)
         return f"""# 🛡️ System Call Analysis Report: `{name}`
 
-> **Automated Headless Binary & Applet Decompilation via Ghidra MCP**  
+> **Automated Headless Binary Decompilation via Ghidra**  
 > **Analysis Date:** {self.metadata.get('analysis_time', 'N/A')}  
-> **Analysis Mode:** Ghidra Headless (No GUI) | Model Context Protocol"""
+> **Analysis Mode:** {mode}"""
 
     def _render_target_overview(self) -> str:
         return f"""## 📦 Target Binary Information
 
 | Attribute | Value |
 | :--- | :--- |
-| **File Name** | `{self.metadata.get('file_name', 'Unknown')}` |
-| **Absolute Path** | `{self.metadata.get('absolute_path', 'Unknown')}` |
-| **File Format** | `{self.metadata.get('file_type', 'Unknown')}` |
-| **Architecture** | `{self.metadata.get('architecture', self.metadata.get('format', 'Auto-detected'))}` |
+| **File Name** | {code_cell(self.metadata.get('file_name', 'Unknown'))} |
+| **Absolute Path** | {code_cell(self.metadata.get('absolute_path', 'Unknown'))} |
+| **File Format** | {code_cell(self.metadata.get('file_type', 'Unknown'))} |
+| **Architecture** | {code_cell(self.metadata.get('architecture', self.metadata.get('format', 'Auto-detected')))} |
 | **File Size** | {self.metadata.get('file_size_formatted', 'Unknown')} ({self.metadata.get('file_size_bytes', 0):,} bytes) |
 | **SHA-256** | `{self.metadata.get('sha256', 'N/A')}` |
 | **MD-5** | `{self.metadata.get('md5', 'N/A')}` |
-| **Ghidra Program Name** | `{self.metadata.get('ghidra_program_name', self.metadata.get('file_name'))}` |"""
+| **Ghidra Program Name** | {code_cell(self.metadata.get('ghidra_program_name', self.metadata.get('file_name')))} |"""
 
     def _render_dashboard_metrics(self) -> str:
         total_findings = len(self.findings)
@@ -118,6 +134,11 @@ class MarkdownReportGenerator:
         categories = set(f.category for f in self.findings)
         observations = []
 
+        if "Direct Syscall" in categories:
+            direct_funcs = [f.function_name for f in self.findings if f.category == "Direct Syscall"]
+            observations.append(
+                f"- ⚠️ **Direct Kernel Entry:** Raw syscall instructions that bypass libc wrappers in: `{', '.join(sorted(set(direct_funcs)))}`."
+            )
         if "Process & Execution" in categories:
             exec_calls = [f.name for f in self.findings if f.category == "Process & Execution"]
             observations.append(
@@ -166,15 +187,17 @@ class MarkdownReportGenerator:
                 "INFO": "⚪ INFO",
             }.get(f.severity, f.severity)
 
-            loc = f"`{f.function_name}`"
-            if f.address:
-                loc += f"<br>`{f.address}`"
+            loc = code_cell(f.function_name)
+            if f.callsite_address:
+                loc += f"<br>call @ {code_cell(f.callsite_address)}"
+            elif f.address:
+                loc += f"<br>{code_cell(f.address)}"
 
             det_type = f.detection_type.replace("_", " ").title()
-            args_snippet = f"`{f.arguments[:40]}...`" if len(f.arguments) > 40 else (f"`{f.arguments}`" if f.arguments else "—")
+            args_snippet = code_cell(f"{f.arguments[:40]}...") if len(f.arguments) > 40 else (code_cell(f.arguments) if f.arguments else "—")
 
             rows.append(
-                f"| **`{f.name}`** | {f.category} | {sev_badge} | {loc} | {f.line_number or '—'} | {det_type} | {args_snippet} |"
+                f"| **{code_cell(f.name)}** | {f.category} | {sev_badge} | {loc} | {f.line_number or '—'} | {det_type} | {args_snippet} |"
             )
 
         table = "\n".join(rows)
@@ -230,10 +253,19 @@ class MarkdownReportGenerator:
         return "\n\n".join(sections)
 
     def _render_methodology(self) -> str:
-        return """## ⚙️ Methodology & Tooling
+        backend = self.metadata.get("backend", "mcp")
+        if backend == "pyghidra":
+            engine = "- **Decompilation Engine:** Ghidra Decompiler (`DecompInterface`) driven in-process via PyGhidra."
+        elif backend == "mock":
+            engine = "- **Decompilation Engine:** None. Mock dry run with built-in sample code; the target was not decompiled."
+        else:
+            engine = (
+                "- **Decompilation Engine:** Ghidra Decompiler via a Ghidra MCP server.\n"
+                "- **Protocol:** Model Context Protocol (MCP) JSON-RPC 2.0 stdio / HTTP bridge."
+            )
+        return f"""## ⚙️ Methodology & Tooling
 
-This report was generated using **Ghidra Syscall Analyzer** operating in full **Headless Mode** via the **Model Context Protocol (MCP)**:
-- **Decompilation Engine:** Ghidra Decompiler (`DecompInterface`) via PyGhidra / GhidraMCP.
-- **Protocol:** Model Context Protocol (MCP) JSON-RPC 2.0 stdio / HTTP bridge.
+This report was generated using **Ghidra Syscall Analyzer** operating in full **Headless Mode**:
+{engine}
 - **Headless Execution:** Fully automated headless analysis without requiring the Ghidra graphical user interface (GUI).
-- **Detection Scope:** Covers direct assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), POSIX / libc system call wrappers, Windows Native NT and Win32 system APIs, macOS Mach traps, and Java JVM / Applet system invocations."""
+- **Detection Scope:** Covers direct assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), POSIX / libc system call wrappers, Windows Native NT and Win32 system APIs, and macOS Mach traps in native executables (ELF, PE, Mach-O)."""
