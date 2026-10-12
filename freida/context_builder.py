@@ -22,7 +22,7 @@ import collections
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from freida.syscall_detector import SyscallFinding
 
@@ -65,9 +65,9 @@ def _short_name(qualified: str) -> str:
     return qualified.replace("::", ".").split(".")[-1].lstrip("_")
 
 
-def _ref_names(referenced_by: List[Any]) -> List[str]:
+def _ref_names(referenced_by: list[Any]) -> list[str]:
     """Unique referencing function names, in first-seen order."""
-    names: List[str] = []
+    names: list[str] = []
     for ref in referenced_by or []:
         name = ref.get("function") if isinstance(ref, dict) else str(ref)
         if name and name not in names:
@@ -75,7 +75,7 @@ def _ref_names(referenced_by: List[Any]) -> List[str]:
     return names
 
 
-def _syscall_summary(findings: List[SyscallFinding]) -> Dict[str, Any]:
+def _syscall_summary(findings: list[SyscallFinding]) -> dict[str, Any]:
     return {
         "total": len(findings),
         "unique": sorted({f.name for f in findings}),
@@ -84,7 +84,7 @@ def _syscall_summary(findings: List[SyscallFinding]) -> Dict[str, Any]:
     }
 
 
-def _finding_dict(f: SyscallFinding) -> Dict[str, Any]:
+def _finding_dict(f: SyscallFinding) -> dict[str, Any]:
     return {
         "name": f.name,
         "category": f.category,
@@ -100,7 +100,7 @@ def _finding_dict(f: SyscallFinding) -> Dict[str, Any]:
     }
 
 
-def _function_entry(fn: Dict[str, Any], findings_by_function: Dict[str, List[SyscallFinding]]) -> Dict[str, Any]:
+def _function_entry(fn: dict[str, Any], findings_by_function: dict[str, list[SyscallFinding]]) -> dict[str, Any]:
     return {
         "name": fn.get("name"),
         "address": fn.get("address"),
@@ -115,14 +115,14 @@ def _function_entry(fn: Dict[str, Any], findings_by_function: Dict[str, List[Sys
     }
 
 
-def _group_findings(findings: List[SyscallFinding]) -> Dict[str, List[SyscallFinding]]:
-    grouped: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
+def _group_findings(findings: list[SyscallFinding]) -> dict[str, list[SyscallFinding]]:
+    grouped: dict[str, list[SyscallFinding]] = collections.defaultdict(list)
     for f in findings:
         grouped[f.function_name].append(f)
     return grouped
 
 
-def _common_sections(metadata: Dict[str, Any], facts: Dict[str, Any], findings: List[SyscallFinding]) -> Dict[str, Any]:
+def _common_sections(metadata: dict[str, Any], facts: dict[str, Any], findings: list[SyscallFinding]) -> dict[str, Any]:
     return {
         "target": {key: metadata[key] for key in TARGET_KEYS if key in metadata},
         "program": facts.get("program", {}),
@@ -137,11 +137,11 @@ def _common_sections(metadata: Dict[str, Any], facts: Dict[str, Any], findings: 
 
 
 def build_facts(
-    metadata: Dict[str, Any],
-    facts: Dict[str, Any],
-    findings: List[SyscallFinding],
-    exploration: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
+    metadata: dict[str, Any],
+    facts: dict[str, Any],
+    findings: list[SyscallFinding],
+    exploration: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Builds the uncapped facts document: every collected item, with full decompiled code."""
     findings_by_function = _group_findings(findings)
     functions = []
@@ -166,20 +166,20 @@ def build_facts(
     return output
 
 
-def _is_file_format(item: Dict[str, Any]) -> bool:
+def _is_file_format(item: dict[str, Any]) -> bool:
     return item.get("origin") == "file_format"
 
 
-def _rank_by_references(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def _rank_by_references(items: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Most-referenced first; unreferenced items keep their address order at the end."""
     indexed = list(enumerate(items))
     indexed.sort(key=lambda pair: (-len(_ref_names(pair[1].get("referenced_by", []))), pair[0]))
     return [item for _, item in indexed]
 
 
-def _compact_string(s: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
+def _compact_string(s: dict[str, Any], limits: ContextLimits) -> dict[str, Any]:
     value = str(s.get("value", ""))
-    item: Dict[str, Any] = {"address": s.get("address"), "value": value[: limits.max_string_length]}
+    item: dict[str, Any] = {"address": s.get("address"), "value": value[: limits.max_string_length]}
     if len(value) > limits.max_string_length:
         item["truncated"] = True
     for key in ("section", "encoding"):
@@ -189,7 +189,7 @@ def _compact_string(s: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
     return item
 
 
-def _compact_global(g: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
+def _compact_global(g: dict[str, Any], limits: ContextLimits) -> dict[str, Any]:
     item = {key: g.get(key) for key in ("address", "label", "type", "size", "section", "value_preview")}
     if g.get("points_to"):
         item["points_to"] = g["points_to"]
@@ -197,7 +197,7 @@ def _compact_global(g: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
     return item
 
 
-def _compact_type(t: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
+def _compact_type(t: dict[str, Any], limits: ContextLimits) -> dict[str, Any]:
     item = {key: t.get(key) for key in ("name", "kind", "size", "source_archive")}
     fields = t.get("fields")
     if fields is not None:
@@ -217,22 +217,22 @@ def _compact_type(t: Dict[str, Any], limits: ContextLimits) -> Dict[str, Any]:
 
 
 def build_context(
-    metadata: Dict[str, Any],
-    facts: Dict[str, Any],
-    findings: List[SyscallFinding],
-    limits: Optional[ContextLimits] = None,
-    exploration: Optional[Dict[str, Any]] = None,
-    facts_file: Optional[str] = None,
-) -> Dict[str, Any]:
+    metadata: dict[str, Any],
+    facts: dict[str, Any],
+    findings: list[SyscallFinding],
+    limits: ContextLimits | None = None,
+    exploration: dict[str, Any] | None = None,
+    facts_file: str | None = None,
+) -> dict[str, Any]:
     """Builds the model-sized context bundle from analysis metadata, facts, and findings."""
     limits = limits or ContextLimits()
     program = facts.get("program", {})
     entry_points = set(program.get("entry_points", []))
     findings_by_function = _group_findings(findings)
 
-    functions_out: List[Dict[str, Any]] = []
-    entry_flags: List[bool] = []
-    decompile_candidates: List[Dict[str, Any]] = []
+    functions_out: list[dict[str, Any]] = []
+    entry_flags: list[bool] = []
+    decompile_candidates: list[dict[str, Any]] = []
     for fn in facts.get("functions", []):
         entry = _function_entry(fn, findings_by_function)
         functions_out.append(entry)
@@ -244,7 +244,7 @@ def build_context(
 
     # Entry points first, then the functions with the most syscall findings.
     decompile_candidates.sort(key=lambda c: (not c["is_entry"], -len(c["entry"]["syscalls"])))
-    line_capped: List[str] = []
+    line_capped: list[str] = []
     for candidate in decompile_candidates[: limits.max_decompiled_functions]:
         lines = candidate["code"].splitlines()
         if len(lines) > limits.max_decompiled_lines:
@@ -327,18 +327,18 @@ def build_context(
     return output
 
 
-def _write_json(document: Dict[str, Any], output_path: Union[str, Path]) -> Path:
+def _write_json(document: dict[str, Any], output_path: str | Path) -> Path:
     out_file = Path(output_path).resolve()
     out_file.parent.mkdir(parents=True, exist_ok=True)
     out_file.write_text(json.dumps(document, indent=2, default=str), encoding="utf-8")
     return out_file
 
 
-def write_context(context: Dict[str, Any], output_path: Union[str, Path]) -> Path:
+def write_context(context: dict[str, Any], output_path: str | Path) -> Path:
     """Writes the context bundle as pretty-printed JSON."""
     return _write_json(context, output_path)
 
 
-def write_facts(facts: Dict[str, Any], output_path: Union[str, Path]) -> Path:
+def write_facts(facts: dict[str, Any], output_path: str | Path) -> Path:
     """Writes the uncapped facts document as pretty-printed JSON."""
     return _write_json(facts, output_path)

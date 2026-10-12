@@ -9,13 +9,14 @@ from __future__ import annotations
 
 import difflib
 import json
-from typing import Any, Callable, Dict, List, Optional
+from collections.abc import Callable
+from typing import Any
 
 MAX_RESULT_BYTES = 16 * 1024
 MAX_STRING_HITS = 30
 MAX_STRING_VALUE = 200
 
-FUNCTION_DECLARATIONS: List[Dict[str, Any]] = [
+FUNCTION_DECLARATIONS: list[dict[str, Any]] = [
     {
         "name": "get_function",
         "description": (
@@ -80,8 +81,8 @@ def _bare(name: str) -> str:
     return name.split("::")[-1].lstrip("_")
 
 
-def _ref_names(referenced_by: List[Any]) -> List[str]:
-    names: List[str] = []
+def _ref_names(referenced_by: list[Any]) -> list[str]:
+    names: list[str] = []
     for ref in referenced_by or []:
         name = ref.get("function") if isinstance(ref, dict) else str(ref)
         if name and name not in names:
@@ -89,7 +90,7 @@ def _ref_names(referenced_by: List[Any]) -> List[str]:
     return names
 
 
-def cap_result(result: Dict[str, Any], max_bytes: int = MAX_RESULT_BYTES) -> Dict[str, Any]:
+def cap_result(result: dict[str, Any], max_bytes: int = MAX_RESULT_BYTES) -> dict[str, Any]:
     """Keeps a tool result under `max_bytes` of JSON, trimming decompiled code first."""
     if len(json.dumps(result)) <= max_bytes:
         return result
@@ -108,16 +109,16 @@ def cap_result(result: Dict[str, Any], max_bytes: int = MAX_RESULT_BYTES) -> Dic
 class FactsIndex:
     """Lookup tables over a facts document (as written to <target>_facts.json)."""
 
-    def __init__(self, facts: Dict[str, Any]) -> None:
+    def __init__(self, facts: dict[str, Any]) -> None:
         self.facts = facts
-        self.functions: List[Dict[str, Any]] = facts.get("functions", [])
+        self.functions: list[dict[str, Any]] = facts.get("functions", [])
         self.function_by_name = {f["name"]: f for f in self.functions if f.get("name")}
         self.function_by_bare_name = {_bare(f["name"]): f for f in self.functions if f.get("name")}
         self.function_by_address = {normalize_address(f["address"]): f for f in self.functions if f.get("address")}
         self.strings_by_address = {normalize_address(s["address"]): s for s in facts.get("strings", [])}
         self.globals_by_address = {normalize_address(g["address"]): g for g in facts.get("globals", [])}
         self.types_by_name = {t["name"]: t for t in facts.get("data_types", []) if t.get("name")}
-        self.findings_by_function: Dict[str, List[Dict[str, Any]]] = {}
+        self.findings_by_function: dict[str, list[dict[str, Any]]] = {}
         for finding in facts.get("syscall_findings", []):
             self.findings_by_function.setdefault(finding.get("function"), []).append(finding)
 
@@ -140,7 +141,7 @@ class FactsIndex:
 
     # -- resolution -------------------------------------------------------
 
-    def find_function(self, name_or_address: str) -> Optional[Dict[str, Any]]:
+    def find_function(self, name_or_address: str) -> dict[str, Any] | None:
         key = str(name_or_address or "").strip()
         return (
             self.function_by_name.get(key)
@@ -160,7 +161,7 @@ class FactsIndex:
 
     # -- tools ------------------------------------------------------------
 
-    def get_function(self, name_or_address: str) -> Dict[str, Any]:
+    def get_function(self, name_or_address: str) -> dict[str, Any]:
         fn = self.find_function(name_or_address)
         if fn is None:
             names = [f["name"] for f in self.functions if f.get("name")]
@@ -178,7 +179,7 @@ class FactsIndex:
         result["decompiled"] = fn.get("decompiled")
         return cap_result(result)
 
-    def get_references(self, address: str) -> Dict[str, Any]:
+    def get_references(self, address: str) -> dict[str, Any]:
         normalized = normalize_address(address)
         if normalized in self.strings_by_address:
             s = self.strings_by_address[normalized]
@@ -208,7 +209,7 @@ class FactsIndex:
                                "called_from": call_sites})
         return {"error": f"Nothing known at address '{address}'."}
 
-    def search_strings(self, query: str) -> Dict[str, Any]:
+    def search_strings(self, query: str) -> dict[str, Any]:
         needle = str(query or "").lower()
         if not needle:
             return {"error": "Empty query."}
@@ -228,7 +229,7 @@ class FactsIndex:
             ],
         })
 
-    def get_data_type(self, name: str) -> Dict[str, Any]:
+    def get_data_type(self, name: str) -> dict[str, Any]:
         data_type = self.types_by_name.get(str(name or "").strip())
         if data_type is None:
             return {
@@ -237,8 +238,8 @@ class FactsIndex:
             }
         return cap_result(dict(data_type))
 
-    def run_tool(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        tools: Dict[str, Callable[..., Dict[str, Any]]] = {
+    def run_tool(self, name: str, args: dict[str, Any]) -> dict[str, Any]:
+        tools: dict[str, Callable[..., dict[str, Any]]] = {
             "get_function": self.get_function,
             "get_references": self.get_references,
             "search_strings": self.search_strings,

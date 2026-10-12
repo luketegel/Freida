@@ -95,7 +95,9 @@ class TestContextBuilder(unittest.TestCase):
 
 
 def add_extended_facts(facts: dict) -> dict:
-    ref = lambda fn: [{"function": fn, "at": "00101110", "ref_type": "READ"}]
+    def ref(fn: str) -> list:
+        return [{"function": fn, "at": "00101110", "ref_type": "READ"}]
+
     facts["strings"] = [
         {"address": "00102000", "value": "__TEXT", "referenced_by": []},
         {"address": "00102010", "value": "/bin/sh", "referenced_by": ref("helper_0") + ref("helper_1")},

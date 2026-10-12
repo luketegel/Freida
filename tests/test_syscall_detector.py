@@ -1,6 +1,7 @@
 """Tests for SyscallDetector engine."""
 
 import unittest
+
 from freida.syscall_detector import SyscallDetector
 
 

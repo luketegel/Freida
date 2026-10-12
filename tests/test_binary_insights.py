@@ -208,7 +208,9 @@ class TestOriginClassification(unittest.TestCase):
         facts = self.facts()
         counts = classify_origins(facts)
 
-        origin = lambda section: [x["origin"] for x in facts[section]]
+        def origin(section: str) -> list:
+            return [x["origin"] for x in facts[section]]
+
         # mach_header is used by a function, so it stays program content.
         self.assertEqual(origin("data_types"), ["file_format", "program", "program"])
         # Referenced LINKEDIT data and program pointers are program content.

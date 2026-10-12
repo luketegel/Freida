@@ -40,3 +40,18 @@ include = ["freida", "freida.*"]
 
 [tool.setuptools.package-data]
 freida = ["webui/static/*", "samples/*"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP"]
+ignore = ["E501"]  # Long report-template strings read better unwrapped.
+
+[tool.ruff.lint.per-file-ignores]
+# The trailing double spaces in the report header are Markdown hard line breaks.
+"freida/report_generator.py" = ["W291"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["freida"]

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import collections
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 from freida.syscall_detector import SyscallFinding
 
@@ -33,9 +33,9 @@ class MarkdownReportGenerator:
 
     def __init__(
         self,
-        metadata: Dict[str, Any],
-        findings: List[SyscallFinding],
-        decompiled_functions: Optional[Dict[str, str]] = None,
+        metadata: dict[str, Any],
+        findings: list[SyscallFinding],
+        decompiled_functions: dict[str, str] | None = None,
     ) -> None:
         self.metadata = metadata
         self.findings = findings
@@ -55,7 +55,7 @@ class MarkdownReportGenerator:
         ]
         return "\n\n".join(sections)
 
-    def write_to_file(self, output_path: Union[str, Path]) -> Path:
+    def write_to_file(self, output_path: str | Path) -> Path:
         """Writes the generated report to the designated output file."""
         out_file = Path(output_path).resolve()
         out_file.parent.mkdir(parents=True, exist_ok=True)
@@ -212,7 +212,7 @@ class MarkdownReportGenerator:
             return ""
 
         # Group findings by function
-        by_func: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
+        by_func: dict[str, list[SyscallFinding]] = collections.defaultdict(list)
         for f in self.findings:
             by_func[f.function_name].append(f)
 

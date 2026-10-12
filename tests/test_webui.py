@@ -1,7 +1,6 @@
 """Tests for the local web UI server."""
 
 import json
-import sys
 import tempfile
 import threading
 import time

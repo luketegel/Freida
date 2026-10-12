@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from freida.context_builder import build_context, build_facts
 from freida.orchestrator import HeadlessOrchestrator
@@ -13,7 +13,7 @@ SAMPLE_BINARY = ROOT / "freida" / "samples" / "sample_binary"
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "ghidra12_macos_arm64_sample_binary.json"
 
 
-def sample_documents() -> Tuple[Dict[str, Any], Dict[str, Any]]:
+def sample_documents() -> tuple[dict[str, Any], dict[str, Any]]:
     """(facts, context) built from the real Ghidra 12.1.4 run of samples/sample_binary."""
     collector = PyGhidraCollector(target_path=SAMPLE_BINARY)
     collector.load_facts(json.loads(FIXTURE.read_text()))
@@ -27,7 +27,7 @@ def sample_documents() -> Tuple[Dict[str, Any], Dict[str, Any]]:
     return json.loads(json.dumps(facts)), json.loads(json.dumps(context))
 
 
-SAMPLE_OVERVIEW: Dict[str, Any] = {
+SAMPLE_OVERVIEW: dict[str, Any] = {
     "summary": "A small test program that writes a file, opens a TCP connection, spawns /bin/ls and maps RWX memory.",
     "execution_flow": "entry calls _perform_direct_syscall, _file_io_operations, _network_operations, "
                       "_process_execution and _memory_manipulation in order.",
@@ -57,7 +57,7 @@ SAMPLE_OVERVIEW: Dict[str, Any] = {
 }
 
 
-def text_response(payload: Any, usage: Dict[str, int] = None) -> Dict[str, Any]:
+def text_response(payload: Any, usage: dict[str, int] = None) -> dict[str, Any]:
     text = payload if isinstance(payload, str) else json.dumps(payload)
     return {
         "candidates": [{
@@ -68,10 +68,10 @@ def text_response(payload: Any, usage: Dict[str, int] = None) -> Dict[str, Any]:
     }
 
 
-def call_response(*calls: Tuple[str, Dict[str, Any]], usage: Dict[str, int] = None) -> Dict[str, Any]:
+def call_response(*calls: tuple[str, dict[str, Any]], usage: dict[str, int] = None) -> dict[str, Any]:
     parts = []
     for i, (name, args) in enumerate(calls):
-        part: Dict[str, Any] = {"functionCall": {"name": name, "args": args, "id": f"call-{i}"}}
+        part: dict[str, Any] = {"functionCall": {"name": name, "args": args, "id": f"call-{i}"}}
         if i == 0:
             part["thoughtSignature"] = "sig-tools"
         parts.append(part)
@@ -84,16 +84,16 @@ def call_response(*calls: Tuple[str, Dict[str, Any]], usage: Dict[str, int] = No
 class ScriptedTransport:
     """Returns queued (status, body) pairs and records every request."""
 
-    def __init__(self, responses: List[Any]) -> None:
+    def __init__(self, responses: list[Any]) -> None:
         self.responses = list(responses)
-        self.requests: List[Dict[str, Any]] = []
+        self.requests: list[dict[str, Any]] = []
 
-    def __call__(self, url: str, headers: Dict[str, str], body: bytes, timeout: float):
+    def __call__(self, url: str, headers: dict[str, str], body: bytes, timeout: float):
         self.requests.append({"url": url, "headers": headers, "body": json.loads(body)})
         item = self.responses.pop(0)
         if isinstance(item, tuple):
             return item
         return 200, json.dumps(item).encode()
 
-    def generate_bodies(self) -> List[Dict[str, Any]]:
+    def generate_bodies(self) -> list[dict[str, Any]]:
         return [r["body"] for r in self.requests if r["url"].endswith(":generateContent")]

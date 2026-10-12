@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import argparse
 import logging
-import os
 import sys
 from pathlib import Path
-from typing import Optional, Tuple
 
 from freida.context_builder import build_context, build_facts, write_context, write_facts
 from freida.orchestrator import BACKENDS, HeadlessOrchestrator
@@ -37,8 +35,8 @@ def write_pdf_report(
     metadata: dict,
     findings: list[SyscallFinding],
     decompiled_functions: dict,
-    pdf_path: Optional[Path],
-) -> Optional[Path]:
+    pdf_path: Path | None,
+) -> Path | None:
     """Writes the PDF version of the report; returns None when disabled or reportlab is missing."""
     if pdf_path is None:
         return None
@@ -50,7 +48,7 @@ def write_pdf_report(
     return PdfReportGenerator(metadata, findings, decompiled_functions).write_to_file(pdf_path)
 
 
-def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Optional[Path] = None) -> Tuple[Path, Optional[Path]]:
+def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Path | None = None) -> tuple[Path, Path | None]:
     """Runs a simulated analysis session with sample decompilations for testing/validation."""
     logger.info("Executing mock validation analysis on: %s", target_path.name)
     metadata = {
@@ -119,7 +117,7 @@ def run_mock_analysis(target_path: Path, output_file: Path, pdf_file: Optional[P
     return written_path, pdf_path
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="freida",
         description="Freida: decompile a native executable with headless Ghidra and report its system calls (Markdown + PDF).",

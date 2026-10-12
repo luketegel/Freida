@@ -6,18 +6,16 @@ transports to communicate with the Ghidra MCP server in headless mode.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
 import queue
 import subprocess
-import sys
 import threading
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
-import urllib.request
 import urllib.error
+import urllib.request
+from typing import Any
 
 from freida import __version__
 
@@ -34,9 +32,9 @@ class GhidraMCPClient:
 
     def __init__(
         self,
-        cmd: Optional[List[str]] = None,
-        server_url: Optional[str] = None,
-        env: Optional[Dict[str, str]] = None,
+        cmd: list[str] | None = None,
+        server_url: str | None = None,
+        env: dict[str, str] | None = None,
         timeout: float = 60.0,
     ) -> None:
         self.cmd = cmd
@@ -44,13 +42,13 @@ class GhidraMCPClient:
         self.env = env or os.environ.copy()
         self.timeout = timeout
 
-        self.process: Optional[subprocess.Popen[str]] = None
-        self._stdout_queue: "queue.Queue[Optional[str]]" = queue.Queue()
-        self._reader_thread: Optional[threading.Thread] = None
+        self.process: subprocess.Popen[str] | None = None
+        self._stdout_queue: queue.Queue[str | None] = queue.Queue()
+        self._reader_thread: threading.Thread | None = None
         self._msg_id = 0
         self._lock = threading.Lock()
-        self.server_info: Dict[str, Any] = {}
-        self.available_tools: Dict[str, Dict[str, Any]] = {}
+        self.server_info: dict[str, Any] = {}
+        self.available_tools: dict[str, dict[str, Any]] = {}
         self._is_initialized = False
 
     def start(self) -> None:
@@ -106,7 +104,7 @@ class GhidraMCPClient:
             self._msg_id += 1
             return self._msg_id
 
-    def _send_stdio_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _send_stdio_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Sends a JSON-RPC request over stdio and waits for the response."""
         if not self.process or not self.process.stdin or not self.process.stdout:
             raise MCPError("Subprocess stdio is not connected")
@@ -164,7 +162,7 @@ class GhidraMCPClient:
                     raise MCPError(f"Ghidra MCP error ({err.get('code')}): {err_msg}")
                 return data.get("result", {})
 
-    def _send_notification(self, method: str, params: Optional[Dict[str, Any]] = None) -> None:
+    def _send_notification(self, method: str, params: dict[str, Any] | None = None) -> None:
         """Sends a notification (no response expected)."""
         if not self.process or not self.process.stdin:
             return
@@ -180,7 +178,7 @@ class GhidraMCPClient:
         except OSError:
             pass
 
-    def _send_http_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def _send_http_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Sends request to Ghidra HTTP server endpoint."""
         if not self.server_url:
             raise MCPError("No server URL configured for HTTP request")
@@ -210,7 +208,7 @@ class GhidraMCPClient:
             # Check if this is a direct REST server rather than JSON-RPC
             raise MCPError(f"Failed to communicate with Ghidra server at {self.server_url}: {e}") from e
 
-    def send_request(self, method: str, params: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    def send_request(self, method: str, params: dict[str, Any] | None = None) -> dict[str, Any]:
         """Dispatches request based on configured transport."""
         if self.process:
             return self._send_stdio_request(method, params)
@@ -245,7 +243,7 @@ class GhidraMCPClient:
         # Refresh tool catalogue
         self.refresh_tools()
 
-    def refresh_tools(self) -> Dict[str, Dict[str, Any]]:
+    def refresh_tools(self) -> dict[str, dict[str, Any]]:
         """Queries the server for available tools via tools/list."""
         resp = self.send_request("tools/list", {})
         raw_tools = resp.get("tools", [])
@@ -257,7 +255,7 @@ class GhidraMCPClient:
         logger.info("Discovered %d MCP tools: %s", len(self.available_tools), list(self.available_tools.keys()))
         return self.available_tools
 
-    def call_tool(self, name: str, arguments: Optional[Dict[str, Any]] = None) -> Any:
+    def call_tool(self, name: str, arguments: dict[str, Any] | None = None) -> Any:
         """Invokes an MCP tool and unpacks the returned content."""
         params = {
             "name": name,
@@ -267,7 +265,7 @@ class GhidraMCPClient:
         content_items = res.get("content", [])
 
         # Parse text content from MCP format
-        output_parts: List[Any] = []
+        output_parts: list[Any] = []
         for item in content_items:
             if item.get("type") == "text":
                 text_content = item.get("text", "")
@@ -284,7 +282,7 @@ class GhidraMCPClient:
             return output_parts[0]
         return output_parts
 
-    def get_program_info(self) -> Dict[str, Any]:
+    def get_program_info(self) -> dict[str, Any]:
         """Calls get_program_info to retrieve binary architecture and metadata."""
         if "get_program_info" in self.available_tools:
             res = self.call_tool("get_program_info")
@@ -292,23 +290,23 @@ class GhidraMCPClient:
                 return res
         return {}
 
-    def list_functions(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def list_functions(self, limit: int = 100) -> list[dict[str, Any]]:
         """Retrieves all functions from Ghidra using pagination."""
-        all_funcs: List[Dict[str, Any]] = []
+        all_funcs: list[dict[str, Any]] = []
         offset = 0
 
         # Check which listing tool is registered
         tool_name = "list_functions" if "list_functions" in self.available_tools else "list_methods"
 
         while True:
-            args: Dict[str, Any] = {"offset": offset, "limit": limit}
+            args: dict[str, Any] = {"offset": offset, "limit": limit}
             try:
                 res = self.call_tool(tool_name, args)
             except MCPError as e:
                 logger.warning("Error fetching functions at offset %d: %s", offset, e)
                 break
 
-            items: List[Any] = []
+            items: list[Any] = []
             has_more = False
 
             if isinstance(res, dict):
@@ -334,7 +332,7 @@ class GhidraMCPClient:
         logger.info("Retrieved a total of %d functions from Ghidra", len(all_funcs))
         return all_funcs
 
-    def list_imports(self) -> List[Dict[str, Any]]:
+    def list_imports(self) -> list[dict[str, Any]]:
         """Lists imported symbols/libraries."""
         if "list_imports" in self.available_tools:
             try:
@@ -347,7 +345,7 @@ class GhidraMCPClient:
                 logger.warning("Could not list imports: %s", e)
         return []
 
-    def decompile_function(self, function_name: str, address: Optional[str] = None) -> Optional[str]:
+    def decompile_function(self, function_name: str, address: str | None = None) -> str | None:
         """Decompiles a function by address or name."""
         decompile_tool = None
         for candidate in ["decompile_function", "decompile", "get_decompilation"]:
@@ -361,7 +359,7 @@ class GhidraMCPClient:
 
         # Build arguments based on tool schema
         schema = self.available_tools[decompile_tool].get("inputSchema", {}).get("properties", {})
-        args: Dict[str, Any] = {}
+        args: dict[str, Any] = {}
         if "address" in schema and address:
             args["address"] = address
         elif "name" in schema:

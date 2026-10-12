@@ -13,8 +13,9 @@ import os
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional, Tuple
+from typing import Any
 
 logger = logging.getLogger("freida.gemini_client")
 
@@ -22,7 +23,7 @@ GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 RETRY_STATUSES = {429, 500, 503}
 
 # (status, body) = transport(url, headers, body_bytes, timeout)
-Transport = Callable[[str, Dict[str, str], bytes, float], Tuple[int, bytes]]
+Transport = Callable[[str, dict[str, str], bytes, float], tuple[int, bytes]]
 
 
 class GeminiError(Exception):
@@ -41,7 +42,7 @@ class ModelPricing:
 # Standard paid-tier list prices (Gemini Developer API pricing page, Oct 2026).
 # gemini-3.6-flash shows a $0.75 input promotion through 2026-12-31; the list price is used
 # so estimates stay conservative. Override with --price-in / --price-cached / --price-out.
-MODEL_PRICING: Dict[str, ModelPricing] = {
+MODEL_PRICING: dict[str, ModelPricing] = {
     "gemini-3.6-flash": ModelPricing(input=1.50, cached_input=0.15, output=7.50),
     "gemini-3.5-flash-lite": ModelPricing(input=0.30, cached_input=0.03, output=2.50),
     "gemini-3.1-flash-lite": ModelPricing(input=0.25, cached_input=0.025, output=1.50),
@@ -50,9 +51,9 @@ MODEL_PRICING: Dict[str, ModelPricing] = {
 
 def pricing_for(
     model: str,
-    price_in: Optional[float] = None,
-    price_cached: Optional[float] = None,
-    price_out: Optional[float] = None,
+    price_in: float | None = None,
+    price_cached: float | None = None,
+    price_out: float | None = None,
 ) -> ModelPricing:
     """Pricing for a model, with optional per-field overrides; unknown models require overrides."""
     base = MODEL_PRICING.get(model)
@@ -76,7 +77,7 @@ def token_cost(input_tokens: int, output_tokens: int, pricing: ModelPricing, cac
     ) / 1_000_000
 
 
-def usage_cost(usage: Dict[str, Any], pricing: ModelPricing) -> Dict[str, Any]:
+def usage_cost(usage: dict[str, Any], pricing: ModelPricing) -> dict[str, Any]:
     """Token counts and cost for one response's `usageMetadata`."""
     input_tokens = int(usage.get("promptTokenCount", 0)) + int(usage.get("toolUsePromptTokenCount", 0))
     cached_tokens = int(usage.get("cachedContentTokenCount", 0))
@@ -90,7 +91,7 @@ def usage_cost(usage: Dict[str, Any], pricing: ModelPricing) -> Dict[str, Any]:
     }
 
 
-def _urllib_transport(url: str, headers: Dict[str, str], body: bytes, timeout: float) -> Tuple[int, bytes]:
+def _urllib_transport(url: str, headers: dict[str, str], body: bytes, timeout: float) -> tuple[int, bytes]:
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -106,12 +107,12 @@ class GeminiClient:
 
     def __init__(
         self,
-        api_key: Optional[str] = None,
+        api_key: str | None = None,
         base_url: str = GEMINI_API_BASE,
         timeout: float = 180.0,
         max_retries: int = 2,
         retry_backoff: float = 2.0,
-        transport: Optional[Transport] = None,
+        transport: Transport | None = None,
         sleep: Callable[[float], None] = time.sleep,
     ) -> None:
         self.api_key = api_key or os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
@@ -124,7 +125,7 @@ class GeminiClient:
         self.transport = transport or _urllib_transport
         self.sleep = sleep
 
-    def _post(self, path: str, body: Dict[str, Any]) -> Dict[str, Any]:
+    def _post(self, path: str, body: dict[str, Any]) -> dict[str, Any]:
         url = f"{self.base_url}/{path}"
         headers = {"Content-Type": "application/json", "x-goog-api-key": self.api_key}
         payload = json.dumps(body).encode("utf-8")
@@ -151,10 +152,10 @@ class GeminiClient:
         except (UnicodeDecodeError, json.JSONDecodeError, KeyError, TypeError):
             return raw.decode("utf-8", errors="replace")[:500]
 
-    def generate_content(self, model: str, request: Dict[str, Any]) -> Dict[str, Any]:
+    def generate_content(self, model: str, request: dict[str, Any]) -> dict[str, Any]:
         return self._post(f"models/{model}:generateContent", request)
 
-    def count_tokens(self, model: str, request: Dict[str, Any]) -> int:
+    def count_tokens(self, model: str, request: dict[str, Any]) -> int:
         """Input tokens a generateContent request would use (the countTokens call itself is free)."""
         body = {"generateContentRequest": {"model": f"models/{model}", **request}}
         return int(self._post(f"models/{model}:countTokens", body).get("totalTokens", 0))

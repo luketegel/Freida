@@ -14,10 +14,9 @@ import os
 import shlex
 import shutil
 import sys
-import tempfile
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from freida.binary_insights import (
     callers_by_function,
@@ -25,13 +24,13 @@ from freida.binary_insights import (
     extract_indicators,
     hardening,
 )
-from freida.mcp_client import GhidraMCPClient, MCPError
+from freida.mcp_client import GhidraMCPClient
 from freida.pyghidra_collector import PyGhidraCollector
-from freida.syscall_detector import SyscallFinding, SyscallDetector
+from freida.syscall_detector import SyscallDetector, SyscallFinding
 
 logger = logging.getLogger("freida.orchestrator")
 
-TARGET_INFO_DEFAULT: Dict[str, Any] = {
+TARGET_INFO_DEFAULT: dict[str, Any] = {
     "path": "",
     "name": "",
     "size_bytes": 0,
@@ -49,7 +48,7 @@ DEFAULT_MCP_PACKAGE = "ghidra-mcp[headless] @ git+https://github.com/LaurieWired
 DEFAULT_MCP_EXECUTABLE = "ghidra-mcp"
 
 
-def compute_file_hashes(file_path: Path) -> Tuple[str, str, int]:
+def compute_file_hashes(file_path: Path) -> tuple[str, str, int]:
     """Computes SHA256, MD5, and size for a target file."""
     sha256 = hashlib.sha256()
     md5 = hashlib.md5()
@@ -90,15 +89,15 @@ class HeadlessOrchestrator:
 
     def __init__(
         self,
-        target_path: Union[str, Path],
-        ghidra_install_dir: Optional[str] = None,
-        custom_mcp_cmd: Optional[str] = None,
-        server_url: Optional[str] = None,
-        project_dir: Optional[Path] = None,
-        extension_jar: Optional[Path] = None,
+        target_path: str | Path,
+        ghidra_install_dir: str | None = None,
+        custom_mcp_cmd: str | None = None,
+        server_url: str | None = None,
+        project_dir: Path | None = None,
+        extension_jar: Path | None = None,
         timeout: float = 120.0,
-        backend: Optional[str] = None,
-        max_functions: Optional[int] = None,
+        backend: str | None = None,
+        max_functions: int | None = None,
         decompile_timeout: int = 60,
     ) -> None:
         self.target_path = Path(target_path).resolve()
@@ -130,13 +129,13 @@ class HeadlessOrchestrator:
         self.backend = backend
 
         self.detector = SyscallDetector()
-        self.metadata: Dict[str, Any] = {}
-        self.findings: List[SyscallFinding] = []
-        self.decompiled_functions: Dict[str, str] = {}
-        self.facts: Dict[str, Any] = {}
-        self.exploration: Dict[str, Any] = {}
+        self.metadata: dict[str, Any] = {}
+        self.findings: list[SyscallFinding] = []
+        self.decompiled_functions: dict[str, str] = {}
+        self.facts: dict[str, Any] = {}
+        self.exploration: dict[str, Any] = {}
 
-    def collect_target_metadata(self) -> Dict[str, Any]:
+    def collect_target_metadata(self) -> dict[str, Any]:
         """Gathers hash, size, and type information for the target."""
         sha256, md5, size = compute_file_hashes(self.target_path)
         file_type = detect_file_type(self.target_path)
@@ -154,7 +153,7 @@ class HeadlessOrchestrator:
         }
         return self.metadata
 
-    def build_mcp_command(self) -> List[str]:
+    def build_mcp_command(self) -> list[str]:
         """Constructs the command to execute ghidra-mcp in headless mode."""
         if self.custom_mcp_cmd:
             # Split first so a target path containing spaces stays a single argument.
@@ -202,7 +201,7 @@ class HeadlessOrchestrator:
 
         return cmd
 
-    def run_analysis(self) -> Tuple[Dict[str, Any], List[SyscallFinding]]:
+    def run_analysis(self) -> tuple[dict[str, Any], list[SyscallFinding]]:
         """Executes the complete headless Ghidra analysis workflow."""
         self.collect_target_metadata()
         logger.info("Beginning analysis on target: %s (%s)", self.target_path.name, self.metadata["file_type"])
@@ -212,7 +211,7 @@ class HeadlessOrchestrator:
             env["GHIDRA_INSTALL_DIR"] = self.ghidra_install_dir
 
         # Setup backend
-        client: Union[GhidraMCPClient, PyGhidraCollector]
+        client: GhidraMCPClient | PyGhidraCollector
         if self.backend == "pyghidra":
             client = PyGhidraCollector(
                 target_path=self.target_path,
@@ -253,9 +252,9 @@ class HeadlessOrchestrator:
         self.facts["indicators"] = extract_indicators(self.facts.get("strings", []))
         self.facts["hardening"] = hardening(self.target_path, self.facts)
 
-    def _describe_exploration(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> Dict[str, Any]:
+    def _describe_exploration(self, client: GhidraMCPClient | PyGhidraCollector) -> dict[str, Any]:
         """Tells the model how to reach a Ghidra MCP server for deeper exploration."""
-        info: Dict[str, Any] = {"protocol": "mcp", "transport": "http" if self.server_url else "stdio"}
+        info: dict[str, Any] = {"protocol": "mcp", "transport": "http" if self.server_url else "stdio"}
         if self.server_url:
             info["server_url"] = self.server_url
         else:
@@ -264,7 +263,7 @@ class HeadlessOrchestrator:
         info["tools"] = sorted(tools) if tools else []
         return info
 
-    def _analyze_via_client(self, client: Union[GhidraMCPClient, PyGhidraCollector]) -> None:
+    def _analyze_via_client(self, client: GhidraMCPClient | PyGhidraCollector) -> None:
         """Queries the Ghidra backend (PyGhidra or MCP) for program info, imports, and decompilation."""
         # 1. Retrieve Program Information
         prog_info = client.get_program_info()
@@ -295,7 +294,7 @@ class HeadlessOrchestrator:
             fn_addr = fn.get("address") if isinstance(fn, dict) else None
             callsites = fn.get("callsites") if isinstance(fn, dict) else None
 
-            fn_findings: List[SyscallFinding] = []
+            fn_findings: list[SyscallFinding] = []
             code = client.decompile_function(function_name=fn_name, address=fn_addr)
             if code:
                 decompiled_count += 1

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import collections
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
@@ -63,7 +63,7 @@ CLASSIFICATION_COLORS = {
     "unknown": colors.HexColor("#6b7280"),
 }
 
-def _styles() -> Dict[str, ParagraphStyle]:
+def _styles() -> dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
     body = ParagraphStyle("Body", parent=base["BodyText"], fontName="Helvetica", fontSize=9.5,
                           leading=13, textColor=INK, spaceAfter=4)
@@ -127,8 +127,8 @@ class CategoryBar(Flowable):
             self.canv.roundRect(0, 0, self.width * self.fraction, self.height, 1.5, stroke=0, fill=1)
 
 
-def data_table(rows: List[List[Any]], col_widths: List[float], header: bool = True,
-               align_center: Optional[List[int]] = None) -> Table:
+def data_table(rows: list[list[Any]], col_widths: list[float], header: bool = True,
+               align_center: list[int] | None = None) -> Table:
     """A ruled table with a tinted header row and zebra striping that splits across pages."""
     table = Table(rows, colWidths=col_widths, repeatRows=1 if header else 0)
     commands = [
@@ -153,12 +153,12 @@ def data_table(rows: List[List[Any]], col_widths: List[float], header: bool = Tr
     return table
 
 
-def key_value_table(pairs: List[tuple]) -> Table:
+def key_value_table(pairs: list[tuple]) -> Table:
     rows = [[Paragraph(text(key), STYLES["cell_bold"]), Paragraph(value, STYLES["cell"])] for key, value in pairs]
     return data_table(rows, [45 * mm, CONTENT_WIDTH - 45 * mm], header=False)
 
 
-def _wrap_code_line(line: str) -> List[str]:
+def _wrap_code_line(line: str) -> list[str]:
     line = line.expandtabs(4)
     if len(line) <= CODE_WRAP_COLUMNS:
         return [line]
@@ -173,7 +173,7 @@ def _wrap_code_line(line: str) -> List[str]:
     return pieces
 
 
-def code_block(code: str, max_lines: Optional[int] = None) -> Table:
+def code_block(code: str, max_lines: int | None = None) -> Table:
     """Monospaced code on a tinted background; one row per line so long listings split across pages."""
     lines = code.rstrip("\n").splitlines() or [""]
     omitted = 0
@@ -244,13 +244,13 @@ REMOTE_WRITE_CALLS = {"WriteProcessMemory", "NtWriteVirtualMemory", "vm_write"}
 REMOTE_EXEC_CALLS = {"CreateRemoteThread", "NtCreateThreadEx", "ZwCreateThreadEx", "NtQueueApcThread", "task_for_pid"}
 
 
-def _join(items: List[str]) -> str:
+def _join(items: list[str]) -> str:
     if len(items) <= 1:
         return "".join(items)
     return f"{', '.join(items[:-1])} and {items[-1]}"
 
 
-def assess_syscalls(findings: List[SyscallFinding]) -> Dict[str, str]:
+def assess_syscalls(findings: list[SyscallFinding]) -> dict[str, str]:
     """A rule-based verdict from the detected system calls alone: verdict, confidence and reason."""
     if not findings:
         return {"verdict": "Unknown", "confidence": "low",
@@ -290,7 +290,7 @@ def assess_syscalls(findings: List[SyscallFinding]) -> Dict[str, str]:
             "reason": "Only routine system calls (such as file access, memory allocation and clocks) were found."}
 
 
-def _build(path: Union[str, Path], title: str, footer_label: str, story: List[Any]) -> Path:
+def _build(path: str | Path, title: str, footer_label: str, story: list[Any]) -> Path:
     out_file = Path(path).resolve()
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -318,21 +318,21 @@ class PdfReportGenerator:
 
     def __init__(
         self,
-        metadata: Dict[str, Any],
-        findings: List[SyscallFinding],
-        decompiled_functions: Optional[Dict[str, str]] = None,
+        metadata: dict[str, Any],
+        findings: list[SyscallFinding],
+        decompiled_functions: dict[str, str] | None = None,
     ) -> None:
         self.metadata = metadata
         self.findings = findings
         self.decompiled_functions = decompiled_functions or {}
 
-    def write_to_file(self, output_path: Union[str, Path]) -> Path:
+    def write_to_file(self, output_path: str | Path) -> Path:
         name = self.metadata.get("file_name", "Target Binary")
         return _build(output_path, f"System Call Analysis Report: {name}",
                       f"Freida · System Call Analysis Report · {name}", self.build_story())
 
-    def build_story(self) -> List[Any]:
-        story: List[Any] = []
+    def build_story(self) -> list[Any]:
+        story: list[Any] = []
         story += self._header()
         story += [self._tldr(), Spacer(1, 4)]
         story += self._target_overview()
@@ -344,7 +344,7 @@ class PdfReportGenerator:
         story += self._methodology()
         return story
 
-    def _header(self) -> List[Any]:
+    def _header(self) -> list[Any]:
         name = self.metadata.get("file_name", "Target Binary")
         backend = self.metadata.get("backend", "mcp")
         return [
@@ -365,7 +365,7 @@ class PdfReportGenerator:
         return tldr_box(assessment["verdict"], VERDICT_COLORS[assessment["verdict"]], assessment["confidence"],
                         assessment["reason"], note)
 
-    def _target_overview(self) -> List[Any]:
+    def _target_overview(self) -> list[Any]:
         m = self.metadata
         size = f"{text(m.get('file_size_formatted', 'Unknown'))} ({m.get('file_size_bytes', 0):,} bytes)"
         pairs = [
@@ -380,7 +380,7 @@ class PdfReportGenerator:
         ]
         return [Paragraph("Target Binary Information", STYLES["h1"]), key_value_table(pairs)]
 
-    def _dashboard(self) -> List[Any]:
+    def _dashboard(self) -> list[Any]:
         severities = collections.Counter(f.severity for f in self.findings)
         funcs = self.metadata.get("functions_decompiled", len(self.decompiled_functions))
         metrics = [
@@ -405,7 +405,7 @@ class PdfReportGenerator:
         return [Paragraph("Analysis Dashboard", STYLES["h1"]),
                 data_table(rows, [50 * mm, 20 * mm, CONTENT_WIDTH - 70 * mm])]
 
-    def _categories(self) -> List[Any]:
+    def _categories(self) -> list[Any]:
         heading = Paragraph("System Call Categories", STYLES["h1"])
         categories = collections.Counter(f.category for f in self.findings)
         if not categories:
@@ -418,7 +418,7 @@ class PdfReportGenerator:
                          CategoryBar(count / top)])
         return [heading, data_table(rows, [55 * mm, 20 * mm, CONTENT_WIDTH - 75 * mm])]
 
-    def _observations(self) -> List[Any]:
+    def _observations(self) -> list[Any]:
         groups = [
             ("Direct Syscall", "Direct Kernel Entry", "Raw syscall instructions that bypass libc wrappers in",
              lambda f: f.function_name),
@@ -443,12 +443,12 @@ class PdfReportGenerator:
                                    STYLES["bullet"], bulletText="•"))
         return [Paragraph("Security &amp; Behavioral Observations", STYLES["h1"]), *items]
 
-    def _inventory(self) -> List[Any]:
+    def _inventory(self) -> list[Any]:
         heading = Paragraph("System Calls Inventory", STYLES["h1"])
         if not self.findings:
             return [heading, Paragraph("<i>No system calls detected.</i>", STYLES["body"])]
         header = ["Syscall / API", "Category", "Severity", "Function / Address", "Line", "Type", "Arguments / Context"]
-        rows: List[List[Any]] = [[Paragraph(f"<b>{h}</b>", STYLES["cell"]) for h in header]]
+        rows: list[list[Any]] = [[Paragraph(f"<b>{h}</b>", STYLES["cell"]) for h in header]]
         for f in self.findings:
             location = mono(f.function_name)
             if f.callsite_address:
@@ -469,15 +469,15 @@ class PdfReportGenerator:
         widths.append(CONTENT_WIDTH - sum(widths))
         return [CondPageBreak(50 * mm), heading, data_table(rows, widths)]
 
-    def _evidence(self) -> List[Any]:
-        by_func: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
+    def _evidence(self) -> list[Any]:
+        by_func: dict[str, list[SyscallFinding]] = collections.defaultdict(list)
         for f in self.findings:
             if f.function_name != "[IMPORT_TABLE]":
                 by_func[f.function_name].append(f)
         if not by_func:
             return []
 
-        story: List[Any] = [CondPageBreak(60 * mm), Paragraph("Decompiled Evidence &amp; Callsite Context", STYLES["h1"])]
+        story: list[Any] = [CondPageBreak(60 * mm), Paragraph("Decompiled Evidence &amp; Callsite Context", STYLES["h1"])]
         for func_name, func_findings in by_func.items():
             names = ", ".join(mono(f.name) for f in func_findings)
             story.append(KeepTogether([
@@ -497,7 +497,7 @@ class PdfReportGenerator:
                 story.append(Spacer(1, 6))
         return story
 
-    def _methodology(self) -> List[Any]:
+    def _methodology(self) -> list[Any]:
         backend = self.metadata.get("backend", "mcp")
         if backend == "pyghidra":
             engines = ["<b>Decompilation Engine:</b> Ghidra Decompiler (DecompInterface) driven in-process via PyGhidra."]
@@ -521,20 +521,20 @@ class PdfReportGenerator:
         ]
 
 
-def _paragraphs(value: Any, style: ParagraphStyle) -> List[Paragraph]:
+def _paragraphs(value: Any, style: ParagraphStyle) -> list[Paragraph]:
     """Model prose may contain blank-line separated paragraphs."""
     blocks = [block.strip() for block in str(value or "").split("\n\n") if block.strip()]
     return [Paragraph(text(block).replace("\n", "<br/>"), style) for block in blocks]
 
 
-def write_overview_pdf(result: Dict[str, Any], target: Dict[str, Any], output_path: Union[str, Path]) -> Path:
+def write_overview_pdf(result: dict[str, Any], target: dict[str, Any], output_path: str | Path) -> Path:
     """Renders the Behavioral Overview (the `binary_overview.json` result) as a PDF.
 
     `result` is the agent result as written to the overview JSON; `target` is the
     context's `target` section.
     """
     name = target.get("file_name", "binary")
-    story: List[Any] = [Paragraph(f"Analysis Report: {mono(name)}", STYLES["title"])]
+    story: list[Any] = [Paragraph(f"Analysis Report: {mono(name)}", STYLES["title"])]
     details = []
     if target.get("sha256"):
         details.append(f"SHA-256: {mono(target['sha256'])}")
@@ -560,7 +560,7 @@ def write_overview_pdf(result: Dict[str, Any], target: Dict[str, Any], output_pa
     return _build(output_path, f"Analysis Report: {name}", f"Freida · Behavioral Overview · {name}", story)
 
 
-def _overview_tldr(overview: Dict[str, Any]) -> Table:
+def _overview_tldr(overview: dict[str, Any]) -> Table:
     """The model's verdict and its reason, in a callout at the top of the report."""
     assessment = overview.get("assessment") or {}
     classification = str(assessment.get("classification", "unknown"))
@@ -569,8 +569,8 @@ def _overview_tldr(overview: Dict[str, Any]) -> Table:
                     "Assessment by the model from the decompiled binary; details follow.")
 
 
-def _overview_body(overview: Dict[str, Any]) -> List[Any]:
-    story: List[Any] = _paragraphs(overview.get("summary"), STYLES["body"])
+def _overview_body(overview: dict[str, Any]) -> list[Any]:
+    story: list[Any] = _paragraphs(overview.get("summary"), STYLES["body"])
     story.append(Paragraph("Execution Flow", STYLES["h1"]))
     story += _paragraphs(overview.get("execution_flow"), STYLES["body"])
 
@@ -580,7 +580,7 @@ def _overview_body(overview: Dict[str, Any]) -> List[Any]:
         story.append(Paragraph("<i>No behaviors reported.</i>", STYLES["body"]))
     for number, behavior in enumerate(behaviors, start=1):
         severity = str(behavior.get("severity", "info"))
-        block: List[Any] = [
+        block: list[Any] = [
             Paragraph(f"{number}. {text(behavior.get('title', 'Behavior'))}", STYLES["h2"]),
             Paragraph(f"{severity_label(severity)} &nbsp;·&nbsp; {mono(behavior.get('category', 'other'))}",
                       STYLES["body"]),
@@ -603,7 +603,7 @@ def _overview_body(overview: Dict[str, Any]) -> List[Any]:
     return story
 
 
-def _usage_footer(result: Dict[str, Any]) -> List[Any]:
+def _usage_footer(result: dict[str, Any]) -> list[Any]:
     totals = (result.get("usage") or {}).get("total")
     if not totals:
         return []
