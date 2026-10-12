@@ -5,8 +5,8 @@ lookup tools over the facts file (up to a fixed budget) before it writes a
 structured Behavioral Overview. Every run reports its estimated cost up
 front and its actual cost afterwards.
 
-Usage (after `analyze_syscalls.py <binary>` wrote binary_context.json and binary_facts.json):
-    python -m freida.report_agent [--dry-run]
+Usage (after `freida <binary>` wrote binary_context.json and binary_facts.json):
+    freida-report [--dry-run]        (or: python -m freida.report_agent [--dry-run])
 """
 
 from __future__ import annotations
@@ -449,7 +449,7 @@ def main(argv: list[str] | None = None) -> int:
         description="Generate a Behavioral Overview of an analyzed binary with Gemini, reporting estimated and actual cost.",
     )
     parser.add_argument("context", type=Path, nargs="?", default=Path("binary_context.json"),
-                        help="Model context JSON (default: binary_context.json, as written by analyze_syscalls.py).")
+                        help="Model context JSON (default: binary_context.json, as written by `freida`).")
     parser.add_argument("--facts", type=Path,
                         help="Facts JSON for lookup tools (default: the matching *_facts.json, e.g. binary_facts.json).")
     parser.add_argument("-o", "--output", type=Path, help="Markdown report path (default: binary_overview.md).")
@@ -474,7 +474,7 @@ def main(argv: list[str] | None = None) -> int:
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     if not args.context.exists():
-        print(f"[!] {args.context} not found. Analyze a binary first: python analyze_syscalls.py /path/to/binary")
+        print(f"[!] {args.context} not found. Analyze a binary first: freida /path/to/binary")
         return 2
 
     try:
