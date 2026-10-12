@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pypdf import PdfReader
 
-from ghidra_syscall_analyzer.pdf_report import PdfReportGenerator, write_overview_pdf
+from ghidra_syscall_analyzer.pdf_report import PdfReportGenerator, syscall_tldr, write_overview_pdf
 from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
 from tests.agent_fixtures import SAMPLE_OVERVIEW
 
@@ -59,10 +59,27 @@ class TestSyscallPdfReport(unittest.TestCase):
                          "Decompiled Evidence", "Full decompiled function", "PyGhidra", "Page 1"):
             self.assertIn(expected, content)
 
+    def test_tldr_summarizes_findings_at_the_top(self) -> None:
+        findings = [
+            finding("execve", "Process & Execution", "HIGH", "spawn_shell", "execve();", ""),
+            finding("socket", "Networking & Sockets", "MEDIUM", "init_c2", "socket();", ""),
+            finding("read", "File I/O", "LOW", "init_c2", "read();", ""),
+        ]
+        tldr = " ".join(syscall_tldr({**METADATA, "functions_decompiled": 7}, findings))
+        self.assertIn("decompiled 7 functions", tldr)
+        self.assertIn("3 system call sites (3 unique) across 3 categories", tldr)
+        self.assertLess(tldr.index("spawns or controls processes"), tldr.index("opens network connections"))
+        self.assertIn("1 high-severity call,", tldr)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            content = pdf_text(PdfReportGenerator(METADATA, findings).write_to_file(Path(tmp) / "r.pdf"))
+        self.assertLess(content.index("TL;DR"), content.index("Target Binary Information"))
+
     def test_no_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             content = pdf_text(PdfReportGenerator(METADATA, []).write_to_file(Path(tmp) / "r.pdf"))
         self.assertIn("No system calls detected", content)
+        self.assertIn("found no system calls", content)
         self.assertIn("Low Risk", content)
 
     def test_markup_and_long_code_from_the_binary_are_rendered_safely(self) -> None:
@@ -100,6 +117,10 @@ class TestOverviewPdf(unittest.TestCase):
                          "Observed Behaviors", overview["behaviors"][0]["title"], "unverified",
                          "gemini-3.6-flash", "cost $0.0321"):
             self.assertIn(expected, content)
+        tldr, summary = content.index("TL;DR"), content.index(overview["summary"][:40])
+        self.assertLess(tldr, summary)
+        self.assertLess(summary, content.index("Assessment:"))
+        self.assertLess(summary, content.index("Execution Flow"))
 
     def test_overview_pdf_without_structured_answer(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

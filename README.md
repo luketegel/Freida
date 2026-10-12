@@ -177,7 +177,7 @@ Each report contains:
 5. **System Calls Inventory Table:** Every call site mapped with function name, address, line number, detection type, arguments, and severity.
 6. **Decompiled Evidence & Callsite Context:** Syntax-highlighted code blocks with line annotations and expandable full decompiled function bodies.
 
-The PDF report (`*_syscalls.pdf`) has the same sections, laid out for print: colored severity labels, drawn distribution bars, an inventory table that repeats its header across pages, and code listings (the first 40 lines of each function, long lines wrapped).
+The PDF report (`*_syscalls.pdf`) opens with a **TL;DR**: a few sentences on what the decompilation found (how many functions and system calls, the most telling capabilities such as spawning processes or opening network connections, and the highest-severity calls). It then has the same sections, laid out for print: colored severity labels, drawn distribution bars, an inventory table that repeats its header across pages, and code listings (the first 40 lines of each function, long lines wrapped).
 
 ## 🤖 Model Context and Facts
 
@@ -260,7 +260,7 @@ freida-report
 
 1. `analyze_syscalls.py` runs Ghidra and writes `binary_context.json` and `binary_facts.json` in the current folder, whatever the binary is called.
 2. `freida-report --dry-run` prints the estimated cost and stops (optional; it costs nothing). The estimate says *counted by Gemini* when the key works.
-3. `freida-report` prints the estimate again, generates the report, writes `binary_overview.md` (the report), `binary_overview.pdf` (the same report as a PDF) and `binary_overview.json` (structured result, per-request usage and cost, tool-call trace), and prints the **actual cost**.
+3. `freida-report` prints the estimate again, generates the report, writes `binary_overview.md` (the report), `binary_overview.pdf` (the same report as a PDF, opening with a TL;DR of the verdict and summary) and `binary_overview.json` (structured result, per-request usage and cost, tool-call trace), and prints the **actual cost**.
 
 Each analysis overwrites the `binary_*` files. To keep several, name them: `python analyze_syscalls.py /path/to/mybin --context-out mybin_context.json --facts-out mybin_facts.json`, then `freida-report mybin_context.json`, which picks up `mybin_facts.json` and writes `mybin_overview.md` and `mybin_overview.pdf`.
 
