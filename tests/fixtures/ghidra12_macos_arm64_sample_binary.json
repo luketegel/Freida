@@ -1,0 +1,402 @@
+{
+  "_comment": "Real PyGhidra facts for samples/sample_binary (macOS arm64), Ghidra 12.1.4. Strings omitted.",
+  "program": {
+    "name": "sample_binary",
+    "source": "sample_binary",
+    "language_id": "AARCH64:LE:64:AppleSilicon",
+    "compiler_spec_id": "default",
+    "image_base": "100000000",
+    "format": "Mac OS X Mach-O",
+    "pointer_size": 8,
+    "big_endian": false,
+    "entry_points": [
+      "1000006f0",
+      "100000000",
+      "10000051c",
+      "100000580",
+      "100000698",
+      "1000004b0",
+      "100000608"
+    ]
+  },
+  "imports": [
+    {
+      "name": "___stack_chk_fail",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000001"
+    },
+    {
+      "name": "_open",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000002"
+    },
+    {
+      "name": "_write",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000003"
+    },
+    {
+      "name": "_close",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000004"
+    },
+    {
+      "name": "_socket",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000005"
+    },
+    {
+      "name": "_connect",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000006"
+    },
+    {
+      "name": "_fork",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000007"
+    },
+    {
+      "name": "_execve",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000008"
+    },
+    {
+      "name": "_exit",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:00000009"
+    },
+    {
+      "name": "_mmap",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:0000000a"
+    },
+    {
+      "name": "_mprotect",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:0000000b"
+    },
+    {
+      "name": "_munmap",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:0000000c"
+    },
+    {
+      "name": "___stack_chk_guard",
+      "library": "/usr/lib/libSystem.B.dylib",
+      "address": "EXTERNAL:0000000d"
+    }
+  ],
+  "exports": [
+    {
+      "name": "entry",
+      "address": "1000006f0"
+    },
+    {
+      "name": "__mh_execute_header",
+      "address": "100000000"
+    },
+    {
+      "name": "_file_io_operations",
+      "address": "10000051c"
+    },
+    {
+      "name": "_network_operations",
+      "address": "100000580"
+    },
+    {
+      "name": "_memory_manipulation",
+      "address": "100000698"
+    },
+    {
+      "name": "_perform_direct_syscall",
+      "address": "1000004b0"
+    },
+    {
+      "name": "_process_execution",
+      "address": "100000608"
+    }
+  ],
+  "functions": [
+    {
+      "name": "_perform_direct_syscall",
+      "address": "1000004b0",
+      "size": 108,
+      "is_thunk": false,
+      "callees": [
+        "___stack_chk_fail"
+      ],
+      "callsites": [
+        {
+          "to": "___stack_chk_fail",
+          "at": "10000050c"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nvoid _perform_direct_syscall(void)\n\n{\n  CallSupervisor(0);\n  if (*(long *)PTR____stack_chk_guard_100004000 - *(long *)PTR____stack_chk_guard_100004000 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 -\n                      *(long *)PTR____stack_chk_guard_100004000);\n  }\n  return;\n}\n"
+    },
+    {
+      "name": "_file_io_operations",
+      "address": "10000051c",
+      "size": 100,
+      "is_thunk": false,
+      "callees": [
+        "_close",
+        "_open",
+        "_write"
+      ],
+      "callsites": [
+        {
+          "to": "_open",
+          "at": "100000540"
+        },
+        {
+          "to": "_write",
+          "at": "100000564"
+        },
+        {
+          "to": "_close",
+          "at": "10000056c"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nint _file_io_operations(void)\n\n{\n  int iVar1;\n  \n  iVar1 = _open(\"/tmp/output.dat\",0x201);\n  if (-1 < iVar1) {\n    _write(iVar1,\"Data payload\",0xc);\n    iVar1 = _close(iVar1);\n  }\n  return iVar1;\n}\n"
+    },
+    {
+      "name": "_network_operations",
+      "address": "100000580",
+      "size": 136,
+      "is_thunk": false,
+      "callees": [
+        "___stack_chk_fail",
+        "_close",
+        "_connect",
+        "_socket"
+      ],
+      "callsites": [
+        {
+          "to": "_socket",
+          "at": "1000005a8"
+        },
+        {
+          "to": "_connect",
+          "at": "1000005d0"
+        },
+        {
+          "to": "_close",
+          "at": "1000005d8"
+        },
+        {
+          "to": "___stack_chk_fail",
+          "at": "1000005f8"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nvoid _network_operations(void)\n\n{\n  int iVar1;\n  sockaddr sStack_28;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  iVar1 = _socket(2,1,0);\n  sStack_28.sa_family = '\\x02';\n  sStack_28.sa_data[0] = '\\x1f';\n  sStack_28.sa_data[1] = -0x70;\n  sStack_28.sa_data[2] = '\\0';\n  sStack_28.sa_data[3] = '\\0';\n  sStack_28.sa_data[4] = '\\0';\n  sStack_28.sa_data[5] = '\\0';\n  _connect(iVar1,&sStack_28,0x10);\n  iVar1 = _close(iVar1);\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18,iVar1);\n  }\n  return;\n}\n"
+    },
+    {
+      "name": "_process_execution",
+      "address": "100000608",
+      "size": 144,
+      "is_thunk": false,
+      "callees": [
+        "___stack_chk_fail",
+        "_execve",
+        "_exit",
+        "_fork"
+      ],
+      "callsites": [
+        {
+          "to": "_fork",
+          "at": "100000624"
+        },
+        {
+          "to": "_execve",
+          "at": "100000660"
+        },
+        {
+          "to": "_exit",
+          "at": "100000668"
+        },
+        {
+          "to": "___stack_chk_fail",
+          "at": "100000688"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nvoid _process_execution(void)\n\n{\n  pid_t pVar1;\n  char *local_30;\n  undefined *puStack_28;\n  undefined8 local_20;\n  long local_18;\n  \n  local_18 = *(long *)PTR____stack_chk_guard_100004000;\n  pVar1 = _fork();\n  if (pVar1 == 0) {\n    puStack_28 = PTR_s__la_100004070;\n    local_30 = PTR_s__bin_ls_100004068;\n    local_20 = DAT_100004078;\n    _execve(\"/bin/ls\",&local_30,(char **)0x0);\n                    /* WARNING: Subroutine does not return */\n    _exit(0);\n  }\n  if (*(long *)PTR____stack_chk_guard_100004000 - local_18 != 0) {\n                    /* WARNING: Subroutine does not return */\n    ___stack_chk_fail(*(long *)PTR____stack_chk_guard_100004000 - local_18);\n  }\n  return;\n}\n"
+    },
+    {
+      "name": "_memory_manipulation",
+      "address": "100000698",
+      "size": 88,
+      "is_thunk": false,
+      "callees": [
+        "_mmap",
+        "_mprotect",
+        "_munmap"
+      ],
+      "callsites": [
+        {
+          "to": "_mmap",
+          "at": "1000006c0"
+        },
+        {
+          "to": "_mprotect",
+          "at": "1000006d4"
+        },
+        {
+          "to": "_munmap",
+          "at": "1000006e0"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nvoid _memory_manipulation(void)\n\n{\n  undefined8 uVar1;\n  \n  uVar1 = _mmap(0,0x1000,3,0x1002,0xffffffff,0);\n  _mprotect(uVar1,0x1000,7);\n  _munmap(uVar1,0x1000);\n  return;\n}\n"
+    },
+    {
+      "name": "entry",
+      "address": "1000006f0",
+      "size": 68,
+      "is_thunk": false,
+      "callees": [
+        "_file_io_operations",
+        "_memory_manipulation",
+        "_network_operations",
+        "_perform_direct_syscall",
+        "_process_execution"
+      ],
+      "callsites": [
+        {
+          "to": "_perform_direct_syscall",
+          "at": "100000710"
+        },
+        {
+          "to": "_file_io_operations",
+          "at": "100000714"
+        },
+        {
+          "to": "_network_operations",
+          "at": "100000718"
+        },
+        {
+          "to": "_process_execution",
+          "at": "10000071c"
+        },
+        {
+          "to": "_memory_manipulation",
+          "at": "100000720"
+        }
+      ],
+      "program": "sample_binary",
+      "decompiled": "\nundefined4 entry(void)\n\n{\n  _perform_direct_syscall();\n  _file_io_operations();\n  _network_operations();\n  _process_execution();\n  _memory_manipulation();\n  return 0;\n}\n"
+    },
+    {
+      "name": "___stack_chk_fail",
+      "address": "100000734",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_open",
+      "address": "100000740",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_write",
+      "address": "10000074c",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_close",
+      "address": "100000758",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_socket",
+      "address": "100000764",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_connect",
+      "address": "100000770",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_fork",
+      "address": "10000077c",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_execve",
+      "address": "100000788",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_exit",
+      "address": "100000794",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_mmap",
+      "address": "1000007a0",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_mprotect",
+      "address": "1000007ac",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    },
+    {
+      "name": "_munmap",
+      "address": "1000007b8",
+      "size": 12,
+      "is_thunk": true,
+      "callees": [],
+      "callsites": [],
+      "program": "sample_binary"
+    }
+  ],
+  "strings": []
+}

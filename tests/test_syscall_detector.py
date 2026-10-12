@@ -102,6 +102,66 @@ class TestSyscallDetector(unittest.TestCase):
         self.assertIn("CreateProcessW", names)
         self.assertIn("mach_msg", names)
 
+    def test_macho_underscore_symbols_resolve(self) -> None:
+        code = """int _file_io_operations(void) {
+  iVar1 = _open("/tmp/output.dat",0x201);
+  ___stack_chk_fail();
+  __exit(0);
+}"""
+        findings = self.detector.analyze_decompiled_function("_file_io_operations", code)
+        self.assertEqual([f.name for f in findings], ["open", "exit"])
+        self.assertEqual(findings[0].arguments, '"/tmp/output.dat",0x201')
+
+        imports = [{"name": "_mprotect", "library": "/usr/lib/libSystem.B.dylib"}, {"name": "___stack_chk_guard"}]
+        self.assertEqual([f.name for f in self.detector.analyze_imports(imports)], ["mprotect"])
+
+    def test_resolve_api_strips_decoration(self) -> None:
+        self.assertEqual(self.detector.resolve_api("KERNEL32.DLL::CreateProcessW")[0], "CreateProcessW")
+        self.assertEqual(self.detector.resolve_api("send@16")[4], "WIN32_API")
+        self.assertIsNone(self.detector.resolve_api("_file_io_operations"))
+
+    def test_ghidra_pcodeop_direct_syscalls(self) -> None:
+        # CallSupervisor is verified against Ghidra 12.1.4 AArch64 output; syscall()/swi() follow Ghidra's x86 pcode ops.
+        for stmt in ("CallSupervisor(0);", "syscall();", "swi(0x80);"):
+            findings = self.detector.analyze_decompiled_function("f", "void f(void) {\n  " + stmt + "\n}")
+            self.assertEqual([f.name for f in findings], ["direct_syscall"], stmt)
+
+    def test_syscall_numbers_not_resolved_with_x86_table_on_other_arch(self) -> None:
+        code = "void f(void) {\n  syscall(172);\n}"
+        arm = self.detector.analyze_decompiled_function("f", code, target_arch="AARCH64:LE:64:AppleSilicon")
+        self.assertEqual(arm[0].name, "syscall")
+        x86 = self.detector.analyze_decompiled_function("f", code, target_arch="x86:LE:64:default")
+        self.assertEqual(x86[0].name, "iopl")
+
+    def test_callsites_pair_with_decompiled_lines(self) -> None:
+        code = """void _process_execution(void) {
+  pVar1 = _fork();
+  _execve("/bin/ls",&local_30,(char **)0x0);
+  _exit(0);
+}"""
+        decompiled = self.detector.analyze_decompiled_function("_process_execution", code, "100000608")
+        callsites = [
+            {"to": "_execve", "at": "100000660"},
+            {"to": "_fork", "at": "100000624"},
+            {"to": "_exit", "at": "100000668"},
+            {"to": "___stack_chk_fail", "at": "100000688"},
+        ]
+        merged = self.detector.analyze_callsites("_process_execution", callsites, decompiled, "100000608")
+
+        self.assertEqual([(f.name, f.callsite_address) for f in merged],
+                         [("fork", "100000624"), ("execve", "100000660"), ("exit", "100000668")])
+        self.assertEqual(merged[1].arguments, '"/bin/ls",&local_30,(char **)0x0')
+
+    def test_callsites_without_matching_lines_are_reported_alone(self) -> None:
+        code = "void f(void) {\n  _open(path,0);\n  CallSupervisor(0);\n}"
+        decompiled = self.detector.analyze_decompiled_function("f", code)
+        callsites = [{"to": "_open", "at": "1000"}, {"to": "_open", "at": "1010"}]
+        merged = self.detector.analyze_callsites("f", callsites, decompiled)
+
+        opens = [f for f in merged if f.name == "open"]
+        self.assertEqual([(f.callsite_address, f.line_number) for f in opens], [("1000", 0), ("1010", 0)])
+        self.assertIn("direct_syscall", [f.name for f in merged])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -132,6 +132,7 @@ def build_context(
                 "detection_type": f.detection_type,
                 "function": f.function_name,
                 "function_address": f.address,
+                "callsite_address": f.callsite_address,
                 "line": f.line_number,
                 "arguments": f.arguments,
                 "syscall_number": f.syscall_number,

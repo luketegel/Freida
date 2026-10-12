@@ -105,7 +105,10 @@ class PyGhidraCollector:
         return self.facts.get("imports", [])
 
     def list_functions(self, limit: int = 100) -> List[Dict[str, Any]]:
-        return [{"name": f["name"], "address": f["address"]} for f in self.facts.get("functions", [])]
+        return [
+            {"name": f["name"], "address": f["address"], "callsites": f.get("callsites", [])}
+            for f in self.facts.get("functions", [])
+        ]
 
     def decompile_function(self, function_name: str, address: Optional[str] = None) -> Optional[str]:
         if address and address in self._decompiled_by_address:

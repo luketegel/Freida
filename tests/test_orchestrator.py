@@ -1,11 +1,15 @@
 """Tests for HeadlessOrchestrator backend selection and MCP command building."""
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 from ghidra_syscall_analyzer.orchestrator import DEFAULT_MCP_PACKAGE, HeadlessOrchestrator
+from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
+
+SAMPLE_BINARY = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples" / "sample_binary"
 
 
 class TestHeadlessOrchestrator(unittest.TestCase):
@@ -58,6 +62,32 @@ class TestHeadlessOrchestrator(unittest.TestCase):
             with self.assertRaises(RuntimeError) as ctx:
                 orch.run_analysis()
         self.assertIn("GHIDRA_INSTALL_DIR", str(ctx.exception))
+
+
+class TestRealGhidraOutputReplay(unittest.TestCase):
+    """Replays PyGhidra facts captured from Ghidra 12.1.4 on samples/sample_binary (macOS arm64)."""
+
+    def test_findings_have_callsite_addresses_and_no_import_duplicates(self) -> None:
+        facts = json.loads((Path(__file__).parent / "fixtures" / "ghidra12_macos_arm64_sample_binary.json").read_text())
+        collector = PyGhidraCollector(target_path=SAMPLE_BINARY)
+        collector.load_facts(facts)
+
+        orch = HeadlessOrchestrator(SAMPLE_BINARY)
+        orch.collect_target_metadata()
+        orch._analyze_via_client(collector)
+
+        found = {(f.function_name, f.name): f for f in orch.findings}
+        self.assertEqual(len(found), len(orch.findings))
+        self.assertEqual(found[("_process_execution", "execve")].callsite_address, "100000660")
+        self.assertEqual(found[("_memory_manipulation", "mprotect")].arguments, "uVar1,0x1000,7")
+        self.assertIn(("_perform_direct_syscall", "direct_syscall"), found)
+        self.assertEqual(
+            {name for _, name in found},
+            {"direct_syscall", "open", "write", "close", "socket", "connect",
+             "fork", "execve", "exit", "mmap", "mprotect", "munmap"},
+        )
+        # Every imported API is also called, so no [IMPORT_TABLE] findings remain.
+        self.assertNotIn("[IMPORT_TABLE]", {f.function_name for f in orch.findings})
 
 
 if __name__ == "__main__":

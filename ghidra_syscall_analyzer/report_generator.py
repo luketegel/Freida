@@ -134,6 +134,11 @@ class MarkdownReportGenerator:
         categories = set(f.category for f in self.findings)
         observations = []
 
+        if "Direct Syscall" in categories:
+            direct_funcs = [f.function_name for f in self.findings if f.category == "Direct Syscall"]
+            observations.append(
+                f"- ⚠️ **Direct Kernel Entry:** Raw syscall instructions that bypass libc wrappers in: `{', '.join(sorted(set(direct_funcs)))}`."
+            )
         if "Process & Execution" in categories:
             exec_calls = [f.name for f in self.findings if f.category == "Process & Execution"]
             observations.append(
@@ -183,7 +188,9 @@ class MarkdownReportGenerator:
             }.get(f.severity, f.severity)
 
             loc = code_cell(f.function_name)
-            if f.address:
+            if f.callsite_address:
+                loc += f"<br>call @ {code_cell(f.callsite_address)}"
+            elif f.address:
                 loc += f"<br>{code_cell(f.address)}"
 
             det_type = f.detection_type.replace("_", " ").title()

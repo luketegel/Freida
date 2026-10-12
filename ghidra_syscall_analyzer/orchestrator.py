@@ -266,10 +266,8 @@ class HeadlessOrchestrator:
         # 2. Retrieve and Analyze Imported Symbols
         imports = client.list_imports()
         self.metadata["total_imports"] = len(imports)
-        if imports:
-            import_findings = self.detector.analyze_imports(imports, target_arch=target_arch)
-            self.findings.extend(import_findings)
-            logger.info("Detected %d syscalls from import table", len(import_findings))
+        import_findings = self.detector.analyze_imports(imports, target_arch=target_arch) if imports else []
+        logger.info("Detected %d syscalls from import table", len(import_findings))
 
         # 3. Retrieve Function List
         functions = client.list_functions(limit=100)
@@ -281,7 +279,9 @@ class HeadlessOrchestrator:
         for fn in functions:
             fn_name = fn.get("name") if isinstance(fn, dict) else str(fn)
             fn_addr = fn.get("address") if isinstance(fn, dict) else None
+            callsites = fn.get("callsites") if isinstance(fn, dict) else None
 
+            fn_findings: List[SyscallFinding] = []
             code = client.decompile_function(function_name=fn_name, address=fn_addr)
             if code:
                 decompiled_count += 1
@@ -292,7 +292,21 @@ class HeadlessOrchestrator:
                     entry_address=fn_addr,
                     target_arch=target_arch,
                 )
-                self.findings.extend(fn_findings)
+            if callsites:
+                fn_findings = self.detector.analyze_callsites(
+                    function_name=fn_name,
+                    callsites=callsites,
+                    decompiled_findings=fn_findings,
+                    entry_address=fn_addr,
+                    target_arch=target_arch,
+                )
+            self.findings.extend(fn_findings)
+
+        # Report an import only when no call to it was found, so each API call is counted once.
+        called = {f.name for f in self.findings}
+        import_only = [f for f in import_findings if f.name not in called]
+        self.findings = import_only + self.findings
+        logger.info("%d imported syscall APIs have no call site found in decompiled functions", len(import_only))
 
         self.metadata["functions_decompiled"] = decompiled_count
         self.metadata["total_syscall_findings"] = len(self.findings)
