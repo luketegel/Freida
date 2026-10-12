@@ -35,6 +35,8 @@ TARGET_INFO_DEFAULT: Dict[str, Any] = {
 
 BACKENDS = ("pyghidra", "mcp")
 
+UNSUPPORTED_SUFFIXES = {".class", ".jar", ".war"}
+
 # Default headless Ghidra MCP server used for exploration and the `mcp` backend.
 DEFAULT_MCP_PACKAGE = "ghidra-mcp[headless] @ git+https://github.com/LaurieWired/GhidraMCP"
 DEFAULT_MCP_EXECUTABLE = "ghidra-mcp"
@@ -56,13 +58,8 @@ def compute_file_hashes(file_path: Path) -> Tuple[str, str, int]:
 
 
 def detect_file_type(file_path: Path) -> str:
-    """Detects binary or applet file format from magic bytes and extensions."""
+    """Detects the executable format from magic bytes."""
     suffix = file_path.suffix.lower()
-    if suffix in [".jar", ".war"]:
-        return "Java Archive (Applet / JAR)"
-    if suffix == ".class":
-        return "Java Bytecode Class (Applet)"
-
     try:
         with open(file_path, "rb") as f:
             magic = f.read(16)
@@ -72,18 +69,13 @@ def detect_file_type(file_path: Path) -> str:
             if magic.startswith(b"MZ"):
                 return "Windows PE Executable"
             if magic.startswith(b"\xca\xfe\xba\xbe"):
-                # Can be Mach-O Universal or Java class file
-                if suffix == ".class":
-                    return "Java Bytecode Class (Applet)"
-                return "Mach-O Universal Binary / Java Class"
+                return "Mach-O Universal Binary"
             if magic.startswith((b"\xfe\xed\xfa\xce", b"\xfe\xed\xfa\xcf", b"\xcf\xfa\xed\xfe")):
                 return "macOS Mach-O Binary"
-            if magic.startswith(b"PK\x03\x04"):
-                return "ZIP / Java JAR Archive"
     except Exception as e:
         logger.debug("Error reading magic bytes: %s", e)
 
-    return f"Executable / Applet ({suffix or 'raw'})"
+    return f"Unknown executable format ({suffix or 'raw'})"
 
 
 class HeadlessOrchestrator:
@@ -104,7 +96,12 @@ class HeadlessOrchestrator:
     ) -> None:
         self.target_path = Path(target_path).resolve()
         if not self.target_path.exists():
-            raise FileNotFoundError(f"Target binary or applet not found: {self.target_path}")
+            raise FileNotFoundError(f"Target binary not found: {self.target_path}")
+        if self.target_path.suffix.lower() in UNSUPPORTED_SUFFIXES:
+            raise ValueError(
+                f"Unsupported target {self.target_path.name}: Java class/JAR files are not supported. "
+                "Freida analyzes native executables (ELF, PE, Mach-O)."
+            )
 
         self.ghidra_install_dir = (
             ghidra_install_dir

@@ -1,8 +1,8 @@
 """Syscall Detection Engine.
 
-Analyzes decompiled C pseudocode, imports, disassembly, and Java applet
-decompilations to identify direct system calls, libc wrappers, Windows NT
-APIs, and Java JVM system invocations.
+Analyzes decompiled C pseudocode, imports, and Ghidra callsites of native
+executables to identify direct system calls, libc wrappers, Windows NT/Win32
+APIs, and macOS Mach traps.
 """
 
 from __future__ import annotations
@@ -20,7 +20,7 @@ class SyscallFinding:
     category: str
     description: str
     severity: str  # "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
-    detection_type: str  # "DIRECT_SYSCALL", "LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH", "JAVA_SYSTEM"
+    detection_type: str  # "DIRECT_SYSCALL", "LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH"
     function_name: str
     address: Optional[str]
     line_number: int
@@ -549,34 +549,6 @@ WINDOWS_SYSCALL_CATALOG: Dict[str, Tuple[str, str, str, str]] = {
     "recv": ("Networking & Sockets", "Winsock receive data", "MEDIUM", "WIN32_API"),
 }
 
-# Java Applet / JVM System Invocations Catalog
-JAVA_SYSTEM_CATALOG: Dict[str, Tuple[str, str, str]] = {
-    # (Category, Description, Severity)
-    "Runtime.getRuntime().exec": ("Process & Execution", "Execute host operating system command/process", "CRITICAL"),
-    "ProcessBuilder": ("Process & Execution", "Build and launch host OS process", "CRITICAL"),
-    "ProcessBuilder.start": ("Process & Execution", "Start native host process", "CRITICAL"),
-    "System.exit": ("Process & Execution", "Terminate JVM instance", "MEDIUM"),
-    "System.loadLibrary": ("System & Native", "Load native dynamic library (JNI bridge)", "HIGH"),
-    "System.load": ("System & Native", "Load native file path (JNI bridge)", "HIGH"),
-    "System.getProperty": ("System Info & Hardware", "Query host environment properties", "LOW"),
-    "System.getenv": ("System Info & Hardware", "Read host environment variables", "MEDIUM"),
-    "AccessController.doPrivileged": ("Security & Privileges", "Bypass Java Sandbox / Execute with elevated privileges", "CRITICAL"),
-    "Socket": ("Networking & Sockets", "Open TCP socket connection", "HIGH"),
-    "ServerSocket": ("Networking & Sockets", "Bind and listen on TCP port", "HIGH"),
-    "URL.openConnection": ("Networking & Sockets", "Open HTTP/network connection", "MEDIUM"),
-    "HttpURLConnection": ("Networking & Sockets", "HTTP network communication", "MEDIUM"),
-    "DatagramSocket": ("Networking & Sockets", "Open UDP datagram socket", "HIGH"),
-    "File": ("File I/O", "File handle manipulation", "LOW"),
-    "FileInputStream": ("File I/O", "Read raw file stream from host disk", "MEDIUM"),
-    "FileOutputStream": ("File I/O", "Write raw file stream to host disk", "HIGH"),
-    "RandomAccessFile": ("File I/O", "Arbitrary file read/write access", "HIGH"),
-    "Files.readAllBytes": ("File I/O", "Read entire file from disk", "MEDIUM"),
-    "Files.write": ("File I/O", "Write data to disk file", "HIGH"),
-    "Files.delete": ("File I/O", "Delete file on host system", "HIGH"),
-    "Unsafe.allocateMemory": ("Memory Management", "Off-heap unmanaged memory allocation", "HIGH"),
-    "Unsafe.putAddress": ("Memory Management", "Direct raw pointer manipulation", "CRITICAL"),
-}
-
 # macOS / Mach Traps
 MACOS_MACH_CATALOG: Dict[str, Tuple[str, str, str]] = {
     "mach_msg": ("IPC & Signals", "Mach kernel IPC message exchange", "MEDIUM"),
@@ -618,7 +590,7 @@ def _address_key(address: str) -> Tuple[int, Any]:
 
 
 class SyscallDetector:
-    """Detects system calls across decompiled C code, imports, and Java sources."""
+    """Detects system calls across decompiled C code, imports, and callsites."""
 
     def __init__(self) -> None:
         # Regex patterns for direct syscall instructions
@@ -668,14 +640,6 @@ class SyscallDetector:
             re.VERBOSE,
         )
 
-        # Pattern for Java Applet / Object invocations: Class.method(args) or obj.method(args)
-        self.java_method_pattern = re.compile(
-            r"""(?ix)
-            \b(?P<target>[a-zA-Z0-9_.]+)\s*\((?P<args>[^;{}]*)\)
-            """,
-            re.VERBOSE,
-        )
-
     def analyze_decompiled_function(
         self,
         function_name: str,
@@ -683,7 +647,7 @@ class SyscallDetector:
         entry_address: Optional[str] = None,
         target_arch: Optional[str] = None,
     ) -> List[SyscallFinding]:
-        """Scans decompiled C or Java code for system calls and returns findings."""
+        """Scans decompiled C code for system calls and returns findings."""
         findings: List[SyscallFinding] = []
         lines = code.splitlines()
 
@@ -777,28 +741,6 @@ class SyscallDetector:
                             code_snippet=stripped,
                             arguments=call_match.group("args").strip(),
                             target_arch=target_arch,
-                        )
-                    )
-
-            # 4. Check for Java Applet / JVM System Invocations
-            for java_key, (j_cat, j_desc, j_sev) in JAVA_SYSTEM_CATALOG.items():
-                if java_key in stripped:
-                    # Extract arguments if present
-                    arg_match = re.search(re.escape(java_key) + r"\s*\((.*?)\)", stripped)
-                    args = arg_match.group(1).strip() if arg_match else ""
-                    findings.append(
-                        SyscallFinding(
-                            name=java_key,
-                            category=j_cat,
-                            description=j_desc,
-                            severity=j_sev,
-                            detection_type="JAVA_SYSTEM",
-                            function_name=function_name,
-                            address=entry_address,
-                            line_number=idx,
-                            code_snippet=stripped,
-                            arguments=args,
-                            target_arch=target_arch or "Java/JVM",
                         )
                     )
 

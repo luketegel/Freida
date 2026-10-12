@@ -77,8 +77,6 @@ def build_context(
             "callsites": fn.get("callsites", []),
             "syscalls": sorted({f.name for f in findings_by_function.get(fn.get("name"), [])}),
         }
-        if fn.get("program"):
-            entry["program"] = fn["program"]
         functions_out.append(entry)
 
         is_entry = fn.get("address") in entry_points or _short_name(fn.get("name") or "") in ENTRY_FUNCTION_NAMES

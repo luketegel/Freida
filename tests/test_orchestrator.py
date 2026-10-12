@@ -30,6 +30,14 @@ class TestHeadlessOrchestrator(unittest.TestCase):
         self.assertEqual(HeadlessOrchestrator(self.target, server_url="http://127.0.0.1:8081").backend, "mcp")
         self.assertEqual(HeadlessOrchestrator(self.target, custom_mcp_cmd="srv {binary}").backend, "mcp")
 
+    def test_java_targets_rejected(self) -> None:
+        for name in ("App.class", "app.jar", "app.war"):
+            target = Path(self._tmp.name) / name
+            target.write_bytes(b"\xca\xfe\xba\xbe")
+            with self.assertRaises(ValueError) as ctx:
+                HeadlessOrchestrator(target)
+            self.assertIn("not supported", str(ctx.exception))
+
     def test_unknown_backend_rejected(self) -> None:
         with self.assertRaises(ValueError):
             HeadlessOrchestrator(self.target, backend="gui")

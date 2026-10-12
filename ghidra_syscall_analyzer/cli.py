@@ -1,6 +1,6 @@
 """Command-Line Interface for Ghidra Syscall Analyzer.
 
-Enables automated, headless decompilation of executables and applets
+Enables automated, headless decompilation of native executables
 via Ghidra MCP to extract system calls into Markdown reports.
 """
 
@@ -99,20 +99,20 @@ def run_mock_analysis(target_path: Path, output_file: Path) -> Path:
 def main(argv: Optional[list[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="ghidra-syscall-analyzer",
-        description="Decompiles an executable or applet with Ghidra MCP in Headless Mode and reports all system calls in Markdown.",
+        description="Decompiles a native executable with headless Ghidra and reports all system calls in Markdown.",
     )
     parser.add_argument(
         "target",
         nargs="?",
         type=Path,
-        help="Path to the executable or applet to analyze (ELF, PE, Mach-O, JAR, Class).",
+        help="Path to the executable to analyze (ELF, PE, Mach-O).",
     )
     parser.add_argument(
         "-b",
         "--binary",
         type=Path,
         dest="binary_opt",
-        help="Alternative flag to specify the target executable or applet path.",
+        help="Alternative flag to specify the target executable path.",
     )
     parser.add_argument(
         "-o",
@@ -190,7 +190,7 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     target_file = args.binary_opt or args.target
     if not target_file:
-        parser.error("A target executable or applet path is required.")
+        parser.error("A target executable path is required.")
 
     target_path = Path(target_file).resolve()
     if not target_path.exists():

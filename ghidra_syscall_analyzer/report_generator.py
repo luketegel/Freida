@@ -69,7 +69,7 @@ class MarkdownReportGenerator:
         mode = BACKEND_LABELS.get(backend, backend)
         return f"""# 🛡️ System Call Analysis Report: `{name}`
 
-> **Automated Headless Binary & Applet Decompilation via Ghidra**  
+> **Automated Headless Binary Decompilation via Ghidra**  
 > **Analysis Date:** {self.metadata.get('analysis_time', 'N/A')}  
 > **Analysis Mode:** {mode}"""
 
@@ -268,4 +268,4 @@ class MarkdownReportGenerator:
 This report was generated using **Ghidra Syscall Analyzer** operating in full **Headless Mode**:
 {engine}
 - **Headless Execution:** Fully automated headless analysis without requiring the Ghidra graphical user interface (GUI).
-- **Detection Scope:** Covers direct assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), POSIX / libc system call wrappers, Windows Native NT and Win32 system APIs, macOS Mach traps, and Java JVM / Applet system invocations."""
+- **Detection Scope:** Covers direct assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), POSIX / libc system call wrappers, Windows Native NT and Win32 system APIs, and macOS Mach traps in native executables (ELF, PE, Mach-O)."""

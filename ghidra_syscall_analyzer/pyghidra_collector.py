@@ -14,46 +14,14 @@ import logging
 import os
 import tempfile
 import warnings
-import zipfile
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Union
 
 logger = logging.getLogger("ghidra_syscall_analyzer.pyghidra_collector")
 
-JAVA_ARCHIVE_SUFFIXES = {".jar", ".war"}
-
-
 class BackendUnavailableError(RuntimeError):
     """Raised when Ghidra or PyGhidra cannot be located or started."""
     pass
-
-
-def extract_class_files(archive_path: Path, dest_dir: Path) -> List[Path]:
-    """Extracts .class entries from a JAR/WAR, rejecting unsafe member paths."""
-    dest_root = dest_dir.resolve()
-    extracted: List[Path] = []
-
-    with zipfile.ZipFile(archive_path) as zf:
-        for member in zf.infolist():
-            if member.is_dir() or not member.filename.endswith(".class"):
-                continue
-
-            member_path = PurePosixPath(member.filename)
-            if member_path.is_absolute() or ".." in member_path.parts:
-                logger.warning("Skipping unsafe archive member: %s", member.filename)
-                continue
-
-            out_path = (dest_root / Path(*member_path.parts)).resolve()
-            if dest_root not in out_path.parents:
-                logger.warning("Skipping archive member outside extraction root: %s", member.filename)
-                continue
-
-            out_path.parent.mkdir(parents=True, exist_ok=True)
-            with zf.open(member) as src, open(out_path, "wb") as dst:
-                dst.write(src.read())
-            extracted.append(out_path)
-
-    return sorted(extracted)
 
 
 def _iter_java(java_iterable: Any) -> Iterable[Any]:
@@ -133,28 +101,21 @@ class PyGhidraCollector:
     # ------------------------------------------------------------------
 
     def collect(self) -> Dict[str, Any]:
-        """Loads the target with PyGhidra and gathers facts for every program in it."""
+        """Loads the target with PyGhidra and gathers facts about the program."""
         pyghidra = self._start_pyghidra()
 
         with tempfile.TemporaryDirectory(prefix="freida_") as tmp:
-            tmp_dir = Path(tmp)
-            project_location = self.project_dir or (tmp_dir / "project")
+            project_location = self.project_dir or (Path(tmp) / "project")
             project_location.mkdir(parents=True, exist_ok=True)
+            logger.info("Loading %s into Ghidra (headless, PyGhidra)...", self.target_path.name)
+            facts = self._collect_program(pyghidra, project_location)
 
-            if self.target_path.suffix.lower() in JAVA_ARCHIVE_SUFFIXES:
-                class_files = extract_class_files(self.target_path, tmp_dir / "classes")
-                if not class_files:
-                    raise BackendUnavailableError(f"No .class files found in archive: {self.target_path}")
-                inputs = class_files
-            else:
-                inputs = [self.target_path]
-
-            per_program: List[Dict[str, Any]] = []
-            for input_path in inputs:
-                logger.info("Loading %s into Ghidra (headless, PyGhidra)...", input_path.name)
-                per_program.append(self._collect_program(pyghidra, input_path, project_location))
-
-        facts = self._merge(per_program)
+        facts["limits"] = {
+            "max_functions": self.max_functions,
+            "functions_collected": len(facts["functions"]),
+            "functions_total": facts.pop("total_functions"),
+            "max_strings": self.max_strings,
+        }
         self.load_facts(facts)
         return facts
 
@@ -180,21 +141,21 @@ class PyGhidraCollector:
             pyghidra.start(install_dir=Path(self.ghidra_install_dir))
         return pyghidra
 
-    def _collect_program(self, pyghidra: Any, input_path: Path, project_location: Path) -> Dict[str, Any]:
+    def _collect_program(self, pyghidra: Any, project_location: Path) -> Dict[str, Any]:
         with warnings.catch_warnings():
             # open_program is deprecated in newer PyGhidra releases but remains the
             # simplest supported way to load-and-analyze a single file.
             warnings.simplefilter("ignore", DeprecationWarning)
             with pyghidra.open_program(
-                str(input_path),
+                str(self.target_path),
                 project_location=str(project_location),
                 project_name=f"freida_{self.target_path.stem}",
                 analyze=True,
             ) as flat_api:
                 program = flat_api.getCurrentProgram()
-                return self._extract_program_facts(program, input_path.name)
+                return self._extract_program_facts(program)
 
-    def _extract_program_facts(self, program: Any, source_name: str) -> Dict[str, Any]:
+    def _extract_program_facts(self, program: Any) -> Dict[str, Any]:
         from ghidra.app.decompiler import DecompInterface  # type: ignore[import-not-found]
         from ghidra.util.task import ConsoleTaskMonitor  # type: ignore[import-not-found]
 
@@ -207,7 +168,6 @@ class PyGhidraCollector:
 
         info = {
             "name": str(program.getName()),
-            "source": source_name,
             "language_id": str(program.getLanguageID().getIdAsString()),
             "compiler_spec_id": str(program.getCompilerSpec().getCompilerSpecID().getIdAsString()),
             "image_base": str(program.getImageBase()),
@@ -241,11 +201,11 @@ class PyGhidraCollector:
                 total_functions += 1
                 if self.max_functions is not None and len(functions) >= self.max_functions:
                     continue
-                functions.append(self._extract_function(func, function_manager, listing, decomp, monitor, source_name))
+                functions.append(self._extract_function(func, function_manager, listing, decomp, monitor))
         finally:
             decomp.dispose()
 
-        strings = self._extract_strings(program, source_name)
+        strings = self._extract_strings(program)
 
         return {
             "program": info,
@@ -263,7 +223,6 @@ class PyGhidraCollector:
         listing: Any,
         decomp: Any,
         monitor: Any,
-        source_name: str,
     ) -> Dict[str, Any]:
         callsites = []
         for instr in _iter_java(listing.getInstructions(func.getBody(), True)):
@@ -295,13 +254,12 @@ class PyGhidraCollector:
             "address": str(func.getEntryPoint()),
             "size": int(func.getBody().getNumAddresses()),
             "is_thunk": is_thunk,
-            "program": source_name,
             "callees": callees,
             "callsites": callsites,
             "decompiled": decompiled,
         }
 
-    def _extract_strings(self, program: Any, source_name: str) -> List[Dict[str, Any]]:
+    def _extract_strings(self, program: Any) -> List[Dict[str, Any]]:
         """Collects defined strings; strings are supporting context, so failures are not fatal."""
         strings: List[Dict[str, Any]] = []
         try:
@@ -311,9 +269,9 @@ class PyGhidraCollector:
                 value = data.getValue()
                 if value is None:
                     continue
-                strings.append({"address": str(data.getAddress()), "value": str(value), "program": source_name})
+                strings.append({"address": str(data.getAddress()), "value": str(value)})
         except Exception as e:
-            logger.warning("Could not extract strings from %s: %s", source_name, e)
+            logger.warning("Could not extract strings from %s: %s", self.target_path.name, e)
         return strings
 
     @staticmethod
@@ -328,38 +286,3 @@ class PyGhidraCollector:
                 if data.hasStringValue()
             )
         return _iter_java(DefinedStringIterator.forProgram(program))
-
-    def _merge(self, per_program: List[Dict[str, Any]]) -> Dict[str, Any]:
-        """Merges per-program facts; a JAR yields one program per class file."""
-        if len(per_program) == 1:
-            merged = dict(per_program[0])
-        else:
-            first = per_program[0]["program"]
-            merged = {
-                "program": {
-                    "name": self.target_path.name,
-                    "language_id": first.get("language_id"),
-                    "compiler_spec_id": first.get("compiler_spec_id"),
-                    "image_base": first.get("image_base"),
-                    "format": first.get("format"),
-                    "entry_points": [],
-                    "members": [p["program"] for p in per_program],
-                },
-                "imports": [],
-                "exports": [],
-                "functions": [],
-                "total_functions": 0,
-                "strings": [],
-            }
-            for p in per_program:
-                for key in ("imports", "exports", "functions", "strings"):
-                    merged[key].extend(p[key])
-                merged["total_functions"] += p["total_functions"]
-
-        merged["limits"] = {
-            "max_functions": self.max_functions,
-            "functions_collected": len(merged["functions"]),
-            "functions_total": merged["total_functions"],
-            "max_strings_per_program": self.max_strings,
-        }
-        return merged

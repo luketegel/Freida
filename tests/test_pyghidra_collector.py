@@ -7,11 +7,10 @@ import sys
 import tempfile
 import types
 import unittest
-import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector, extract_class_files
+from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
 
 SAMPLES = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples"
 
@@ -127,16 +126,16 @@ class TestStringExtraction(unittest.TestCase):
         util.DefinedStringIterator = types.SimpleNamespace(forProgram=lambda program: _JavaIterator(strings_only))
 
         with patch.dict(sys.modules, _fake_ghidra_modules(util)):
-            strings = self.collector._extract_strings(_FakeProgram([]), "sample")
+            strings = self.collector._extract_strings(_FakeProgram([]))
 
         self.assertEqual([s["value"] for s in strings], ["/bin/sh", "/tmp/output.dat"])
-        self.assertEqual(strings[0], {"address": "00102000", "value": "/bin/sh", "program": "sample"})
+        self.assertEqual(strings[0], {"address": "00102000", "value": "/bin/sh"})
 
     def test_falls_back_to_listing_scan(self) -> None:
         util = types.ModuleType("ghidra.program.util")
 
         with patch.dict(sys.modules, _fake_ghidra_modules(util)):
-            strings = self.collector._extract_strings(_FakeProgram(self.items), "sample")
+            strings = self.collector._extract_strings(_FakeProgram(self.items))
 
         self.assertEqual([s["value"] for s in strings], ["/bin/sh", "/tmp/output.dat"])
 
@@ -150,33 +149,9 @@ class TestStringExtraction(unittest.TestCase):
 
         with patch.dict(sys.modules, _fake_ghidra_modules(util)):
             with self.assertLogs("ghidra_syscall_analyzer.pyghidra_collector", level="WARNING"):
-                strings = self.collector._extract_strings(_FakeProgram(self.items), "sample")
+                strings = self.collector._extract_strings(_FakeProgram(self.items))
 
         self.assertEqual(strings, [])
-
-
-class TestExtractClassFiles(unittest.TestCase):
-
-    def test_extracts_classes_and_rejects_unsafe_members(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            tmp_path = Path(tmp)
-            jar = tmp_path / "app.jar"
-            with zipfile.ZipFile(jar, "w") as zf:
-                zf.writestr("META-INF/MANIFEST.MF", "Manifest-Version: 1.0\n")
-                zf.writestr("com/example/App.class", b"\xca\xfe\xba\xbe")
-                zf.writestr("../evil.class", b"\xca\xfe\xba\xbe")
-                zf.writestr("/abs.class", b"\xca\xfe\xba\xbe")
-
-            out_dir = tmp_path / "out"
-            extracted = extract_class_files(jar, out_dir)
-
-            self.assertEqual([p.relative_to(out_dir.resolve()).as_posix() for p in extracted], ["com/example/App.class"])
-            self.assertFalse((tmp_path / "evil.class").exists())
-
-    def test_sample_applet_jar(self) -> None:
-        with tempfile.TemporaryDirectory() as tmp:
-            extracted = extract_class_files(SAMPLES / "sample_applet.jar", Path(tmp))
-            self.assertEqual([p.name for p in extracted], ["SampleApplet.class"])
 
 
 @unittest.skipUnless(os.environ.get("GHIDRA_INSTALL_DIR"), "requires a Ghidra installation (GHIDRA_INSTALL_DIR)")

@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "ghidra-syscall-analyzer"
 version = "1.0.0"
-description = "Decompile executables and applets with Ghidra MCP in Headless Mode and extract system calls into Markdown reports"
+description = "Decompile native executables with headless Ghidra and extract system calls into Markdown reports and model context"
 readme = "README.md"
 requires-python = ">=3.10"
 authors = [

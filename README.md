@@ -1,6 +1,6 @@
 # 🛡️ Ghidra Syscall Analyzer (Headless MCP)
 
-A robust Python-based security tool that takes in an **executable** (ELF, PE, Mach-O) or **Java Applet** (`.jar`, `.class`), decompiles it with **headless Ghidra** (strictly no GUI), analyzes all functions and imported symbols for **system calls**, and generates a structured, GitHub-flavored **Markdown report** plus a **model context bundle** (JSON) for AI-driven analysis.
+A robust Python-based security tool that takes in a **native executable** (ELF, PE, Mach-O), decompiles it with **headless Ghidra** (strictly no GUI), analyzes all functions and imported symbols for **system calls**, and generates a structured, GitHub-flavored **Markdown report** plus a **model context bundle** (JSON) for AI-driven analysis.
 
 Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** server is the exploration path: the context bundle tells a model how to launch it so it can query the binary in more detail.
 
@@ -11,18 +11,18 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 * **PyGhidra Headless Collection (default):** Loads the target in-process with PyGhidra, runs Ghidra auto-analysis, and extracts program metadata, imports/exports, every function with its callsites, decompiled C, and defined strings, without ever launching the Ghidra GUI.
 * **Model Context Bundle:** Writes `<target>_context.json`, a compact, address-annotated summary sized for a model's context window, with a `truncated` section listing what was left out and an `exploration` section describing the Ghidra MCP server.
 * **Ghidra MCP Backend (optional):** Can instead drive a Ghidra MCP server (JSON-RPC 2.0 over `stdio` or HTTP) with `--backend mcp`, `--mcp-cmd`, or `--server-url`.
-* **Multi-Format & Applet Support:**
+* **Multi-Format Support:**
   * **Linux:** ELF 32/64-bit binaries.
   * **Windows:** PE executables (Win32 / x64).
   * **macOS:** Mach-O 64-bit and Universal binaries.
-  * **Java Applets:** JVM bytecode (`.class` files) and packaged Applets (`.jar` / `.war`).
+  * Java `.class` / `.jar` files are not supported and are rejected with an error.
 * **Comprehensive Syscall Detection:**
-  * **Direct Hardware Syscalls:** Detects raw inline assembly syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`).
+  * **Direct Hardware Syscalls:** Detects raw syscall instructions (`syscall`, `sysenter`, `int 0x80`, `svc #0`), including Ghidra's decompiled forms such as `CallSupervisor(0)`.
+  * **Exact Call Sites:** With the PyGhidra backend, each API call is tied to the address of the call instruction from Ghidra's own call references.
   * **Syscall Number Resolution:** Maps numeric `syscall(SYS_nr, ...)` calls to canonical system call names (e.g., `syscall(59)` → `execve`, `syscall(1)` → `write`).
   * **POSIX / Libc Wrappers:** Identifies standard system call wrappers across File I/O, Process/Thread Execution, Memory Management, Networking/Sockets, IPC/Signals, and Security/Privilege elevation.
   * **Windows NT Native Syscalls & Win32:** Detects `Nt*` / `Zw*` native system calls (`NtCreateFile`, `NtAllocateVirtualMemory`, `NtCreateThreadEx`) and Win32 wrappers (`CreateProcess`, `VirtualAllocEx`, `WriteProcessMemory`).
-  * **macOS Mach Traps:** Recognizes Mach kernel messages and traps (`mach_msg_trap`, `vm_allocate`, `task_for_pid`).
-  * **Java Applet / JVM System Invocations:** Detects sandbox escapes, host OS execution (`Runtime.getRuntime().exec`, `ProcessBuilder`), privilege escalation (`AccessController.doPrivileged`), direct disk I/O (`FileInputStream`, `FileOutputStream`), and socket connections (`Socket`, `ServerSocket`).
+  * **macOS Mach Traps:** Recognizes Mach kernel messages and traps (`mach_msg_trap`, `vm_allocate`, `task_for_pid`); Mach-O's leading underscores (`_open`) are handled.
 * **Rich Markdown Reporting:** Outputs an executive-ready Markdown report complete with target metadata, cryptographic hashes, visual category distribution bars, severity categorization, callsite inventory tables, and decompiled code evidence snippets.
 
 ---
@@ -31,8 +31,8 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 
 ```
                                   +-----------------------------+
-                                  |   Executable / Applet File  |
-                                  | (ELF, PE, Mach-O, JAR, Class|
+                                  |      Native Executable      |
+                                  |      (ELF, PE, Mach-O)      |
                                   +--------------+--------------+
                                                  |
                                                  v
@@ -50,7 +50,7 @@ Initial context is collected in-process with **PyGhidra**. A **Ghidra MCP** serv
 |            |           Decompiled Pseudocode, Strings                         |
 |            v                                                                  |
 |  +--------------------+                                                       |
-|  |  SyscallDetector   | ==> Direct Syscalls, Libc, Windows NT, Java JVM       |
+|  |  SyscallDetector   | ==> Direct Syscalls, Libc, Windows NT, Mach Traps     |
 |  +---------+----------+                                                       |
 |            |                                                                  |
 |            v                                                                  |
@@ -106,12 +106,11 @@ python3 -m pip install -e '.[ghidra]'
 ## 💻 Usage
 
 ### Basic Command (PyGhidra backend)
-Analyze any binary or applet, writing the Markdown report and the model context bundle:
+Analyze a binary, writing the Markdown report and the model context bundle:
 ```bash
 export GHIDRA_INSTALL_DIR=/path/to/ghidra_12.1.4_PUBLIC
 python3 analyze_syscalls.py /path/to/target_binary -o report.md --context-out context.json
 ```
-JAR/WAR archives are unpacked and each `.class` file is analyzed as its own Ghidra program.
 
 ### Running with Headless Ghidra MCP via `uvx`
 To let `uvx` run the headless `ghidra-mcp` server in the background:
@@ -144,7 +143,7 @@ python3 analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary \
 
 | Flag | Description |
 | :--- | :--- |
-| `target` | Path to the executable or applet (ELF, PE, Mach-O, JAR, Class). |
+| `target` | Path to the executable (ELF, PE, Mach-O). |
 | `-b, --binary` | Explicit flag to specify the target path. |
 | `-o, --output` | Output Markdown report file path (default: `<target>_syscalls.md`). |
 | `--context-out` | Output model context JSON path (default: `<target>_context.json`). |
@@ -179,7 +178,7 @@ Each report contains:
 | Key | Contents |
 | :--- | :--- |
 | `target` | File name, size, SHA-256/MD5, detected file type, Ghidra architecture, backend. |
-| `program` | Ghidra language/compiler IDs, image base, format, entry points (and per-class members for JARs). |
+| `program` | Ghidra language/compiler IDs, image base, format, entry points. |
 | `imports` / `exports` | External symbols with library and address; external entry points. |
 | `syscall_summary` / `syscall_findings` | Detected system calls by severity and category, with function, line, and arguments. |
 | `functions` | Every collected function: address, size, callees, callsites (`to`, `at`), detected syscalls; decompiled C for entry points and functions with findings. |

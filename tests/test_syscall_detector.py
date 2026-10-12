@@ -71,25 +71,6 @@ class TestSyscallDetector(unittest.TestCase):
         self.assertEqual(nt_find.detection_type, "WINDOWS_NATIVE")
         self.assertEqual(nt_find.severity, "CRITICAL")
 
-    def test_java_applet_system_calls(self) -> None:
-        code = """public void init() {
-            Runtime.getRuntime().exec("calc.exe");
-            AccessController.doPrivileged(new PrivilegedAction() { ... });
-            Socket s = new Socket("example.com", 80);
-            FileOutputStream fos = new FileOutputStream("/tmp/test");
-        }"""
-        findings = self.detector.analyze_decompiled_function("init", code)
-        names = [f.name for f in findings]
-        self.assertIn("Runtime.getRuntime().exec", names)
-        self.assertIn("AccessController.doPrivileged", names)
-        self.assertIn("Socket", names)
-        self.assertIn("FileOutputStream", names)
-
-        runtime_find = next(f for f in findings if f.name == "Runtime.getRuntime().exec")
-        self.assertEqual(runtime_find.severity, "CRITICAL")
-        self.assertEqual(runtime_find.category, "Process & Execution")
-        self.assertEqual(runtime_find.detection_type, "JAVA_SYSTEM")
-
     def test_imports_analysis(self) -> None:
         imports = [
             {"name": "mprotect", "address": "0x400010"},
