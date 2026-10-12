@@ -187,6 +187,18 @@ class TestExtendedSections(unittest.TestCase):
         self.assertEqual(ctx["truncated"]["empty_strings_omitted"], 1)
         self.assertEqual(len(build_facts(self.metadata, self.facts, self.findings)["strings"]), 5)
 
+    def test_function_list_is_capped_by_relevance(self) -> None:
+        for i in range(5):
+            self.facts["functions"].append({"name": f"filler_{i}", "address": f"0010400{i}", "size": 100 + i})
+        self.facts["functions"][-1]["callees"] = ["helper_0"]  # neighbour of a function with findings
+        limits = ContextLimits(max_functions=5)
+        ctx = build_context(self.metadata, self.facts, self.findings, limits=limits)
+
+        names = [f["name"] for f in ctx["functions"]]
+        self.assertEqual(names, ["main", "helper_0", "helper_1", "helper_2", "filler_4"])
+        self.assertEqual(ctx["truncated"]["functions_omitted_from_context"], len(self.facts["functions"]) - 5)
+        self.assertIn("decompiled", ctx["functions"][1])
+
     def test_missing_sections_default_empty(self) -> None:
         ctx = build_context(self.metadata, make_facts(), self.findings)
         for key in ("globals", "data_types", "indicators", "memory_map"):

@@ -197,6 +197,42 @@ Each real run writes two JSON files for an AI model analyzing the binary:
 
 ---
 
+## 🧠 AI Report: Behavioral Overview (Gemini)
+
+`freida-report` turns the context and facts files into an analysis report using the Gemini API (Google AI Studio). The model reads the context, may call up to **3 read-only lookup tools** over the facts file (`get_function`, `get_references`, `search_strings`, `get_data_type`), and writes a structured **Behavioral Overview**: summary, execution flow, behaviors with cited evidence, assessment, and limitations. Every cited function and address is checked against the facts and flagged if it can't be found.
+
+```bash
+export GEMINI_API_KEY=...            # create one at https://aistudio.google.com/apikey
+python analyze_syscalls.py ghidra_syscall_analyzer/samples/sample_binary --context-out sample_binary_context.json --facts-out sample_binary_facts.json
+freida-report sample_binary_context.json --dry-run    # estimate only, no generation
+freida-report sample_binary_context.json              # writes sample_binary_overview.md / .json
+```
+
+Each run prints an **estimated cost** before generating (exact input size via Gemini's free `countTokens`) and the **actual cost** afterwards (from the API's usage data); both are recorded in `<target>_overview.json` and the report footer. `--max-cost` (default $1.00) refuses runs whose worst-case estimate is higher and stops tool use if the spend approaches it.
+
+**Estimated cost per run, default model `gemini-3.6-flash`** ($1.50 / 1M input, $7.50 / 1M output incl. thinking; list prices, Oct 2026):
+
+| Binary | Context | No tool calls | 3 tool calls (worst case) |
+| :--- | :--- | :--- | :--- |
+| `ghidra_syscall_analyzer/samples/sample_binary` | ~8.5k tokens | ~$0.035 | ~$0.12 |
+| Typical program (100–500 functions) | ~50k tokens | ~$0.10 | ~$0.38 |
+| Large program (context at its caps) | ~120k tokens | ~$0.20 | ~$0.80 |
+
+Google currently lists a $0.75 / 1M input promotion for gemini-3.6-flash through 2026-12-31, and implicit caching bills repeated context at ~10% of the input price; both only lower the actual cost. Cheaper models: `--model gemini-3.5-flash-lite` (~$0.01–0.17 per run, about a fifth of the cost) or `gemini-3.1-flash-lite`. Prices are built in per model and can be overridden with `--price-in`, `--price-cached`, `--price-out`.
+
+| Option | Description |
+| :--- | :--- |
+| `--facts` | Facts JSON for the lookup tools (default: sibling `<target>_facts.json`; without it the model gets no tools). |
+| `--model` | Gemini model (default `gemini-3.6-flash`). |
+| `--max-tool-calls` | Lookup tool budget per run (default `3`). |
+| `--thinking` | `minimal`, `low` (default), `medium`, `high`; higher levels cost more output tokens. |
+| `--max-cost` | Worst-case spend limit in USD (default `1.00`). |
+| `--dry-run` | Print the estimate only (works without an API key, approximating tokens from size). |
+
+> **Data use:** on the free tier, Google may use prompts and responses to improve its products; with billing enabled (paid tier) it does not. Use a billing-enabled key for proprietary or sensitive binaries. Local file paths are stripped from the prompt.
+
+---
+
 ## 🧪 Testing
 
 Run the comprehensive unit test suite:

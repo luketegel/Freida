@@ -57,6 +57,7 @@ class ContextLimits:
     max_fields_per_type: int = 32
     max_indicators: int = 200
     max_refs_per_item: int = 10
+    max_functions: int = 300
 
 
 def _short_name(qualified: str) -> str:
@@ -230,12 +231,14 @@ def build_context(
     findings_by_function = _group_findings(findings)
 
     functions_out: List[Dict[str, Any]] = []
+    entry_flags: List[bool] = []
     decompile_candidates: List[Dict[str, Any]] = []
     for fn in facts.get("functions", []):
         entry = _function_entry(fn, findings_by_function)
         functions_out.append(entry)
 
         is_entry = fn.get("address") in entry_points or _short_name(fn.get("name") or "") in ENTRY_FUNCTION_NAMES
+        entry_flags.append(is_entry)
         if fn.get("decompiled") and (entry["syscalls"] or is_entry):
             decompile_candidates.append({"entry": entry, "code": fn["decompiled"], "is_entry": is_entry})
 
@@ -249,6 +252,19 @@ def build_context(
             line_capped.append(candidate["entry"]["name"])
         candidate["entry"]["decompiled"] = "\n".join(lines)
     decompiled_omitted = [c["entry"]["name"] for c in decompile_candidates[limits.max_decompiled_functions:]]
+
+    # Bound the function list: entry points, functions with findings and their direct neighbours first,
+    # then the largest; listed in original order. The model can fetch the rest from the facts file.
+    functions_collected = len(functions_out)
+    flagged = {f["name"] for f in functions_out if f["syscalls"]}
+
+    def function_rank(i: int):
+        fn = functions_out[i]
+        neighbour = bool(flagged & (set(fn.get("callers") or []) | set(fn.get("callees") or [])))
+        return (not entry_flags[i], not fn["syscalls"], not neighbour, bool(fn.get("is_thunk")), -(fn.get("size") or 0), i)
+
+    kept = sorted(sorted(range(functions_collected), key=function_rank)[: limits.max_functions])
+    functions_out = [functions_out[i] for i in kept]
 
     # File-format metadata (loader structures, symbol tables) stays in the facts file only.
     file_format_omitted = {
@@ -281,7 +297,7 @@ def build_context(
     indicators_out = all_indicators[: limits.max_indicators]
 
     collection_limits = facts.get("limits", {})
-    functions_total = collection_limits.get("functions_total", len(functions_out))
+    functions_total = collection_limits.get("functions_total", functions_collected)
 
     output = {"schema_version": SCHEMA_VERSION}
     output.update(_common_sections(metadata, facts, findings))
@@ -292,7 +308,8 @@ def build_context(
         "data_types": types_out,
         "indicators": indicators_out,
         "truncated": {
-            "functions_not_collected": max(functions_total - len(functions_out), 0),
+            "functions_not_collected": max(functions_total - functions_collected, 0),
+            "functions_omitted_from_context": functions_collected - len(functions_out),
             "decompiled_omitted": decompiled_omitted,
             "decompiled_line_capped": line_capped,
             "strings_omitted": max(len(all_strings) - len(strings_out), 0),

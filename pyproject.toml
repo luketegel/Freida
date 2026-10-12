@@ -28,3 +28,4 @@ dev = [
 
 [project.scripts]
 ghidra-syscall-analyzer = "ghidra_syscall_analyzer.cli:main"
+freida-report = "ghidra_syscall_analyzer.report_agent:main"
