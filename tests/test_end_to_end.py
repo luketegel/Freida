@@ -33,6 +33,26 @@ class TestEndToEnd(unittest.TestCase):
             self.assertIn("execve", content)
             self.assertIn("mprotect", content)
 
+            pdf = output_md.with_suffix(".pdf")
+            self.assertTrue(pdf.read_bytes().startswith(b"%PDF"))
+
+    def test_pdf_out_and_no_pdf(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            sample_file = Path(tmpdir) / "target_binary"
+            sample_file.write_bytes(b"\x7fELF\x02fake_elf_content")
+            output_md = Path(tmpdir) / "report.md"
+            custom_pdf = Path(tmpdir) / "pdfs" / "custom.pdf"
+
+            self.assertEqual(main([str(sample_file), "-o", str(output_md), "--pdf-out", str(custom_pdf),
+                                   "--mock-dry-run"]), 0)
+            self.assertTrue(custom_pdf.exists())
+            self.assertFalse(output_md.with_suffix(".pdf").exists())
+
+            other_md = Path(tmpdir) / "other.md"
+            self.assertEqual(main([str(sample_file), "-o", str(other_md), "--no-pdf", "--mock-dry-run"]), 0)
+            self.assertTrue(other_md.exists())
+            self.assertFalse(other_md.with_suffix(".pdf").exists())
+
     def test_cli_missing_target_fails(self) -> None:
         with self.assertRaises(SystemExit) as ctx:
             main([])

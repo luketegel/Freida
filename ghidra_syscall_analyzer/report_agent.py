@@ -433,6 +433,16 @@ def _sibling(context_path: Path, suffix: str) -> Path:
     return context_path.with_name(f"{stem}{suffix}")
 
 
+def write_pdf(output: Dict[str, Any], target: Dict[str, Any], pdf_path: Path) -> Optional[Path]:
+    """Writes the PDF version of the overview; returns None when reportlab is missing."""
+    try:
+        from ghidra_syscall_analyzer.pdf_report import write_overview_pdf
+    except ImportError:
+        logger.warning("reportlab is not installed; skipping the PDF report (pip install reportlab).")
+        return None
+    return write_overview_pdf(output, target, pdf_path)
+
+
 def main(argv: Optional[List[str]] = None) -> int:
     parser = argparse.ArgumentParser(
         prog="freida-report",
@@ -444,6 +454,8 @@ def main(argv: Optional[List[str]] = None) -> int:
                         help="Facts JSON for lookup tools (default: the matching *_facts.json, e.g. binary_facts.json).")
     parser.add_argument("-o", "--output", type=Path, help="Markdown report path (default: binary_overview.md).")
     parser.add_argument("--json-out", type=Path, help="Structured result + usage JSON (default: binary_overview.json).")
+    parser.add_argument("--pdf-out", type=Path, help="PDF report path (default: binary_overview.pdf).")
+    parser.add_argument("--no-pdf", action="store_true", help="Do not write the PDF report.")
     parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Gemini model (default: {DEFAULT_MODEL}).")
     parser.add_argument("--max-tool-calls", type=int, default=DEFAULT_MAX_TOOL_CALLS,
                         help=f"Maximum lookup tool calls per run (default: {DEFAULT_MAX_TOOL_CALLS}).")
@@ -506,9 +518,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         output = result.to_dict()
         output["unverified_evidence"] = unverified
         json_path.write_text(json.dumps(output, indent=2), encoding="utf-8")
+        pdf_path = None
+        if not args.no_pdf:
+            pdf_path = write_pdf(output, context.get("target", {}), args.pdf_out or _sibling(args.context, "_overview.pdf"))
 
         totals = result.totals
         print(f"[+] Behavioral overview written to:\n    {md_path.resolve()}\n    {json_path.resolve()}")
+        if pdf_path:
+            print(f"    {pdf_path}")
         print(f"[+] Actual cost: ${totals['cost_usd']:.4f} ({totals['requests']} request(s), "
               f"{totals['tool_calls']} tool call(s), {totals['input_tokens']:,} input / "
               f"{totals['output_tokens']:,} output tokens incl. {totals['thinking_tokens']:,} thinking)")

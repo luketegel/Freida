@@ -12,3 +12,4 @@ hs_err_pid*.log
 *_facts.json
 *_overview.json
 *_overview.md
+*_overview.pdf
