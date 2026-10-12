@@ -13,6 +13,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import builtins
 import importlib.util
 import json
 import logging
@@ -29,10 +30,10 @@ import webbrowser
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from ghidra_syscall_analyzer.report_agent import (
+from freida.report_agent import (
     DEFAULT_MAX_COST,
     DEFAULT_MAX_TOOL_CALLS,
     DEFAULT_MODEL,
@@ -40,7 +41,7 @@ from ghidra_syscall_analyzer.report_agent import (
     THINKING_LEVELS,
 )
 
-logger = logging.getLogger("ghidra_syscall_analyzer.webui")
+logger = logging.getLogger("freida.webui")
 
 PACKAGE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = Path(__file__).resolve().parent / "static"
@@ -83,7 +84,7 @@ def safe_filename(name: str) -> str:
     return cleaned[:100]
 
 
-def _number(params: Dict[str, str], key: str, cast, low: float, high: float, default=None):
+def _number(params: dict[str, str], key: str, cast, low: float, high: float, default=None):
     raw = params.get(key, "").strip()
     if raw == "":
         return default
@@ -96,16 +97,16 @@ def _number(params: Dict[str, str], key: str, cast, low: float, high: float, def
     return value
 
 
-def _flag(params: Dict[str, str], key: str) -> bool:
+def _flag(params: dict[str, str], key: str) -> bool:
     return params.get(key, "").lower() in ("1", "true", "on", "yes")
 
 
-def parse_options(params: Dict[str, str]) -> Dict[str, Any]:
+def parse_options(params: dict[str, str]) -> dict[str, Any]:
     """Validates the options sent by the UI; unknown keys are ignored."""
     backend = params.get("backend", "pyghidra")
     if backend not in BACKEND_CHOICES:
         raise OptionError(f"backend must be one of {', '.join(BACKEND_CHOICES)}")
-    options: Dict[str, Any] = {
+    options: dict[str, Any] = {
         "backend": backend,
         "ghidra_dir": params.get("ghidra_dir", "").strip(),
         "mcp_cmd": params.get("mcp_cmd", "").strip(),
@@ -131,10 +132,10 @@ def parse_options(params: Dict[str, str]) -> Dict[str, Any]:
     return options
 
 
-def analysis_command(options: Dict[str, Any], binary: Path, out_dir: Path, stem: str) -> List[str]:
+def analysis_command(options: dict[str, Any], binary: Path, out_dir: Path, stem: str) -> list[str]:
     """Builds the analyzer CLI invocation for a job."""
     cmd = [
-        sys.executable, "-m", "ghidra_syscall_analyzer.cli", str(binary),
+        sys.executable, "-m", "freida.cli", str(binary),
         "-o", str(out_dir / f"{stem}_syscalls.md"),
         "--context-out", str(out_dir / f"{stem}_context.json"),
         "--facts-out", str(out_dir / f"{stem}_facts.json"),
@@ -160,10 +161,10 @@ def analysis_command(options: Dict[str, Any], binary: Path, out_dir: Path, stem:
     return cmd
 
 
-def report_command(options: Dict[str, Any], out_dir: Path, stem: str) -> List[str]:
+def report_command(options: dict[str, Any], out_dir: Path, stem: str) -> list[str]:
     """Builds the `freida-report` invocation for a job."""
     cmd = [
-        sys.executable, "-m", "ghidra_syscall_analyzer.report_agent", str(out_dir / f"{stem}_context.json"),
+        sys.executable, "-m", "freida.report_agent", str(out_dir / f"{stem}_context.json"),
         "--model", options["model"],
         "--max-tool-calls", str(options["max_tool_calls"]),
         "--thinking", options["thinking"],
@@ -181,17 +182,17 @@ def report_command(options: Dict[str, Any], out_dir: Path, stem: str) -> List[st
 class Job:
     """One uploaded binary and the runs made on it."""
 
-    def __init__(self, root: Path, job_id: str, filename: str, options: Dict[str, Any]) -> None:
+    def __init__(self, root: Path, job_id: str, filename: str, options: dict[str, Any]) -> None:
         self.id = job_id
         self.dir = root / job_id
         self.filename = filename
         self.options = options
         self.status = "queued"
-        self.steps: List[Dict[str, Any]] = []
+        self.steps: list[dict[str, Any]] = []
         self.created = time.time()
-        self.finished: Optional[float] = None
+        self.finished: float | None = None
         self.error = ""
-        self.process: Optional[subprocess.Popen] = None
+        self.process: subprocess.Popen | None = None
         self.cancelled = False
         self.lock = threading.Lock()
 
@@ -211,7 +212,7 @@ class Job:
     def stem(self) -> str:
         return Path(self.filename).stem or "binary"
 
-    def outputs(self) -> List[Dict[str, Any]]:
+    def outputs(self) -> list[dict[str, Any]]:
         if not self.output_dir.is_dir():
             return []
         files = []
@@ -234,7 +235,7 @@ class Job:
             return ""
         return text[-LOG_TAIL_CHARS:]
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "filename": self.filename,
@@ -246,7 +247,7 @@ class Job:
             "ai": self.options.get("ai", False),
         }
 
-    def detail(self) -> Dict[str, Any]:
+    def detail(self) -> dict[str, Any]:
         data = self.summary()
         data.update({"options": self.options, "steps": self.steps, "outputs": self.outputs(), "log": self.log_text()})
         return data
@@ -257,7 +258,7 @@ class Job:
         (self.dir / "job.json").write_text(json.dumps(record, indent=2), encoding="utf-8")
 
     @classmethod
-    def load(cls, root: Path, path: Path) -> "Job":
+    def load(cls, root: Path, path: Path) -> Job:
         record = json.loads(path.read_text(encoding="utf-8"))
         job = cls(root, record["id"], record["filename"], record.get("options", {}))
         job.status = record.get("status", "failed")
@@ -276,9 +277,9 @@ class JobManager:
     def __init__(self, workdir: Path) -> None:
         self.workdir = workdir.resolve()
         self.workdir.mkdir(parents=True, exist_ok=True)
-        self.jobs: Dict[str, Job] = {}
-        self.secrets: Dict[str, str] = {}  # job id -> Gemini key for that run only; never written to disk
-        self.queue: "queue.Queue[str]" = queue.Queue()
+        self.jobs: dict[str, Job] = {}
+        self.secrets: dict[str, str] = {}  # job id -> Gemini key for that run only; never written to disk
+        self.queue: queue.Queue[str] = queue.Queue()
         self._load_existing()
         threading.Thread(target=self._worker, name="freida-web-worker", daemon=True).start()
 
@@ -291,13 +292,13 @@ class JobManager:
                 continue
             self.jobs[job.id] = job
 
-    def list(self) -> List[Dict[str, Any]]:
+    def list(self) -> builtins.list[dict[str, Any]]:
         return [job.summary() for job in sorted(self.jobs.values(), key=lambda j: j.created, reverse=True)]
 
-    def get(self, job_id: str) -> Optional[Job]:
+    def get(self, job_id: str) -> Job | None:
         return self.jobs.get(job_id) if JOB_ID_RE.match(job_id) else None
 
-    def create(self, filename: str, data: bytes, options: Dict[str, Any], gemini_key: str = "") -> Job:
+    def create(self, filename: str, data: bytes, options: dict[str, Any], gemini_key: str = "") -> Job:
         job = Job(self.workdir, uuid.uuid4().hex, safe_filename(filename), options)
         job.input_path.parent.mkdir(parents=True)
         job.output_dir.mkdir()
@@ -370,7 +371,7 @@ class JobManager:
         with open(job.log_path, "a", encoding="utf-8") as log:
             log.write(f"[i] {message}\n")
 
-    def _step(self, job: Job, name: str, cmd: List[str], extra_env: Optional[Dict[str, str]] = None) -> bool:
+    def _step(self, job: Job, name: str, cmd: builtins.list[str], extra_env: dict[str, str] | None = None) -> bool:
         step = {"name": name, "status": "running", "returncode": None, "started": time.time(), "finished": None}
         job.steps.append(step)
         job.save()
@@ -425,7 +426,7 @@ class FreidaHandler(BaseHTTPRequestHandler):
             host = host.rsplit(":", 1)[0]
         return host in self.allowed_hosts
 
-    def _send(self, status: int, body: bytes, content_type: str, extra: Optional[Dict[str, str]] = None) -> None:
+    def _send(self, status: int, body: bytes, content_type: str, extra: dict[str, str] | None = None) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
@@ -444,7 +445,7 @@ class FreidaHandler(BaseHTTPRequestHandler):
     def _error(self, status: int, message: str) -> None:
         self._json({"error": message}, status)
 
-    def _route(self) -> List[str]:
+    def _route(self) -> list[str]:
         return [unquote(part) for part in urlparse(self.path).path.split("/") if part]
 
     # --- GET ----------------------------------------------------------------------
@@ -492,7 +493,7 @@ class FreidaHandler(BaseHTTPRequestHandler):
             "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
         } if path.suffix != ".pdf" else {"Content-Disposition": f'{disposition}; filename="{name}"'})
 
-    def _config(self) -> Dict[str, Any]:
+    def _config(self) -> dict[str, Any]:
         return {
             "ghidra_install_dir": os.environ.get("GHIDRA_INSTALL_DIR", ""),
             "pyghidra_installed": importlib.util.find_spec("pyghidra") is not None,
@@ -600,7 +601,7 @@ def make_server(host: str, port: int, workdir: Path, max_upload_mb: int = DEFAUL
     return server
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="freida-web", description="Run the Freida malware analysis web UI on a local web server.")
     parser.add_argument("--host", default=DEFAULT_HOST,
                         help=f"Interface to listen on (default: {DEFAULT_HOST}; only this machine can connect).")

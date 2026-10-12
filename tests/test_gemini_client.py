@@ -4,7 +4,7 @@ import json
 import unittest
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.gemini_client import (
+from freida.gemini_client import (
     GeminiClient,
     GeminiError,
     ModelPricing,

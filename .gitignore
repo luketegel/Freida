@@ -3,9 +3,23 @@ __pycache__/
 *.py[cod]
 .venv/
 *.egg-info/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+
+# Local environment and OS files
+.env
+.DS_Store
 
 # JVM crash logs (e.g. from pyghidra.start())
 hs_err_pid*.log
+
+# Generated reports (the CLI writes <target>_syscalls.md/.pdf next to where it runs)
+*_syscalls.md
+*_syscalls.pdf
+!examples/*_syscalls.md
+!examples/*_syscalls.pdf
 
 # Generated model context bundles and facts
 *_context.json

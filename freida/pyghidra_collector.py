@@ -16,12 +16,13 @@ import logging
 import os
 import tempfile
 import warnings
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Set, Union
+from typing import Any
 
-from ghidra_syscall_analyzer.binary_insights import shannon_entropy
+from freida.binary_insights import shannon_entropy
 
-logger = logging.getLogger("ghidra_syscall_analyzer.pyghidra_collector")
+logger = logging.getLogger("freida.pyghidra_collector")
 
 MAX_XREFS_PER_ITEM = 50
 MAX_VALUE_PREVIEW = 120
@@ -59,8 +60,8 @@ def _type_kind(dt: Any) -> str:
     return "builtin"
 
 
-def _serialize_type(dt: Any, kind: str) -> Dict[str, Any]:
-    item: Dict[str, Any] = {
+def _serialize_type(dt: Any, kind: str) -> dict[str, Any]:
+    item: dict[str, Any] = {
         "name": str(dt.getName()),
         "path": str(dt.getPathName()),
         "kind": kind,
@@ -94,9 +95,9 @@ class UsedTypeCollector:
     def __init__(self, max_types: int = 500) -> None:
         self.max_types = max_types
         self.truncated = False
-        self._entries: Dict[str, Dict[str, Any]] = {}
+        self._entries: dict[str, dict[str, Any]] = {}
 
-    def add(self, dt: Any, user: Optional[str] = None, _depth: int = 0) -> None:
+    def add(self, dt: Any, user: str | None = None, _depth: int = 0) -> None:
         if dt is None or _depth > 8:
             return
         kind = _type_kind(dt)
@@ -123,7 +124,7 @@ class UsedTypeCollector:
         if user:
             entry["used_by"].add(user)
 
-    def serialize(self) -> List[Dict[str, Any]]:
+    def serialize(self) -> list[dict[str, Any]]:
         types = []
         for path, entry in self._entries.items():
             try:
@@ -141,13 +142,13 @@ class PyGhidraCollector:
 
     def __init__(
         self,
-        target_path: Union[str, Path],
-        ghidra_install_dir: Optional[str] = None,
-        project_dir: Optional[Path] = None,
-        max_functions: Optional[int] = None,
+        target_path: str | Path,
+        ghidra_install_dir: str | None = None,
+        project_dir: Path | None = None,
+        max_functions: int | None = None,
         decompile_timeout: int = 60,
-        max_strings: Optional[int] = None,
-        max_globals: Optional[int] = None,
+        max_strings: int | None = None,
+        max_globals: int | None = None,
         max_types: int = 500,
     ) -> None:
         self.target_path = Path(target_path).resolve()
@@ -159,9 +160,9 @@ class PyGhidraCollector:
         self.max_globals = max_globals
         self.max_types = max_types
 
-        self.facts: Dict[str, Any] = {}
-        self._decompiled_by_address: Dict[str, str] = {}
-        self._decompiled_by_name: Dict[str, str] = {}
+        self.facts: dict[str, Any] = {}
+        self._decompiled_by_address: dict[str, str] = {}
+        self._decompiled_by_name: dict[str, str] = {}
 
     # ------------------------------------------------------------------
     # Backend interface (mirrors GhidraMCPClient)
@@ -175,24 +176,24 @@ class PyGhidraCollector:
         """Nothing to release; projects are cleaned up inside collect()."""
         pass
 
-    def get_program_info(self) -> Dict[str, Any]:
+    def get_program_info(self) -> dict[str, Any]:
         return self.facts.get("program", {})
 
-    def list_imports(self) -> List[Dict[str, Any]]:
+    def list_imports(self) -> list[dict[str, Any]]:
         return self.facts.get("imports", [])
 
-    def list_functions(self, limit: int = 100) -> List[Dict[str, Any]]:
+    def list_functions(self, limit: int = 100) -> list[dict[str, Any]]:
         return [
             {"name": f["name"], "address": f["address"], "callsites": f.get("callsites", [])}
             for f in self.facts.get("functions", [])
         ]
 
-    def decompile_function(self, function_name: str, address: Optional[str] = None) -> Optional[str]:
+    def decompile_function(self, function_name: str, address: str | None = None) -> str | None:
         if address and address in self._decompiled_by_address:
             return self._decompiled_by_address[address]
         return self._decompiled_by_name.get(function_name)
 
-    def load_facts(self, facts: Dict[str, Any]) -> None:
+    def load_facts(self, facts: dict[str, Any]) -> None:
         """Installs pre-collected facts and indexes decompiled code for lookup."""
         self.facts = facts
         self._decompiled_by_address = {}
@@ -209,7 +210,7 @@ class PyGhidraCollector:
     # Collection
     # ------------------------------------------------------------------
 
-    def collect(self) -> Dict[str, Any]:
+    def collect(self) -> dict[str, Any]:
         """Loads the target with PyGhidra and gathers facts about the program."""
         pyghidra = self._start_pyghidra()
 
@@ -253,7 +254,7 @@ class PyGhidraCollector:
             pyghidra.start(install_dir=Path(self.ghidra_install_dir))
         return pyghidra
 
-    def _collect_program(self, pyghidra: Any, project_location: Path) -> Dict[str, Any]:
+    def _collect_program(self, pyghidra: Any, project_location: Path) -> dict[str, Any]:
         with warnings.catch_warnings():
             # open_program is deprecated in newer PyGhidra releases but remains the
             # simplest supported way to load-and-analyze a single file.
@@ -267,7 +268,7 @@ class PyGhidraCollector:
                 program = flat_api.getCurrentProgram()
                 return self._extract_program_facts(program)
 
-    def _extract_program_facts(self, program: Any) -> Dict[str, Any]:
+    def _extract_program_facts(self, program: Any) -> dict[str, Any]:
         from ghidra.app.decompiler import DecompInterface  # type: ignore[import-not-found]
         from ghidra.util.task import ConsoleTaskMonitor  # type: ignore[import-not-found]
 
@@ -307,7 +308,7 @@ class PyGhidraCollector:
         types = UsedTypeCollector(self.max_types)
         decomp = DecompInterface()
         decomp.openProgram(program)
-        functions: List[Dict[str, Any]] = []
+        functions: list[dict[str, Any]] = []
         total_functions = 0
         try:
             for func in _iter_java(function_manager.getFunctions(True)):
@@ -342,8 +343,8 @@ class PyGhidraCollector:
         listing: Any,
         decomp: Any,
         monitor: Any,
-        types: Optional[UsedTypeCollector] = None,
-    ) -> Dict[str, Any]:
+        types: UsedTypeCollector | None = None,
+    ) -> dict[str, Any]:
         name = str(func.getName(True))
         callsites = []
         for instr in _iter_java(listing.getInstructions(func.getBody(), True)):
@@ -412,14 +413,14 @@ class PyGhidraCollector:
         except Exception as e:
             logger.debug("Could not read decompiler types of %s: %s", user, e)
 
-    def _referencing_functions(self, program: Any, address: Any, pointer_hops: int = 1) -> List[Dict[str, Any]]:
+    def _referencing_functions(self, program: Any, address: Any, pointer_hops: int = 1) -> list[dict[str, Any]]:
         """Functions that reference an address, following pointers stored in data (e.g. `PTR_s__bin_ls`)."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
         try:
             reference_manager = program.getReferenceManager()
             function_manager = program.getFunctionManager()
             listing = program.getListing()
-            seen: Set[Any] = set()
+            seen: set[Any] = set()
 
             def visit(target: Any, hops: int) -> None:
                 for ref in _iter_java(reference_manager.getReferencesTo(target)):
@@ -443,7 +444,7 @@ class PyGhidraCollector:
         return results
 
     @staticmethod
-    def _section_of(program: Any, address: Any) -> Optional[str]:
+    def _section_of(program: Any, address: Any) -> str | None:
         try:
             block = program.getMemory().getBlock(address)
             return str(block.getName()) if block is not None else None
@@ -451,15 +452,15 @@ class PyGhidraCollector:
             return None
 
     @staticmethod
-    def _type_name(data: Any) -> Optional[str]:
+    def _type_name(data: Any) -> str | None:
         try:
             return str(data.getDataType().getName())
         except Exception:
             return None
 
-    def _extract_strings(self, program: Any) -> List[Dict[str, Any]]:
+    def _extract_strings(self, program: Any) -> list[dict[str, Any]]:
         """Collects all defined strings with section and referencing functions; failures are not fatal."""
-        strings: List[Dict[str, Any]] = []
+        strings: list[dict[str, Any]] = []
         try:
             for data in self._iter_defined_strings(program):
                 if self.max_strings is not None and len(strings) >= self.max_strings:
@@ -482,9 +483,9 @@ class PyGhidraCollector:
             logger.warning("Could not extract strings from %s: %s", self.target_path.name, e)
         return strings
 
-    def _extract_globals(self, program: Any, types: Optional[UsedTypeCollector] = None) -> List[Dict[str, Any]]:
+    def _extract_globals(self, program: Any, types: UsedTypeCollector | None = None) -> list[dict[str, Any]]:
         """Collects non-string defined data (global variables, pointers, tables) with cross-references."""
-        global_data: List[Dict[str, Any]] = []
+        global_data: list[dict[str, Any]] = []
         try:
             symbol_table = program.getSymbolTable()
             for data in _iter_java(program.getListing().getDefinedData(True)):
@@ -494,7 +495,7 @@ class PyGhidraCollector:
                     break
                 address = data.getAddress()
                 label = data.getLabel()
-                entry: Dict[str, Any] = {
+                entry: dict[str, Any] = {
                     "address": str(address),
                     "label": str(label) if label is not None else None,
                     "type": self._type_name(data),
@@ -515,13 +516,13 @@ class PyGhidraCollector:
             logger.warning("Could not extract global data from %s: %s", self.target_path.name, e)
         return global_data
 
-    def _extract_memory_map(self, program: Any) -> List[Dict[str, Any]]:
+    def _extract_memory_map(self, program: Any) -> list[dict[str, Any]]:
         """Memory blocks with permissions and, for initialized blocks, byte entropy."""
-        blocks: List[Dict[str, Any]] = []
+        blocks: list[dict[str, Any]] = []
         try:
             for block in list(program.getMemory().getBlocks()):
                 size = int(block.getSize())
-                entry: Dict[str, Any] = {
+                entry: dict[str, Any] = {
                     "name": str(block.getName()),
                     "start": str(block.getStart()),
                     "end": str(block.getEnd()),
@@ -542,7 +543,7 @@ class PyGhidraCollector:
         return blocks
 
     @staticmethod
-    def _read_block_bytes(block: Any) -> Optional[bytes]:
+    def _read_block_bytes(block: Any) -> bytes | None:
         try:
             import jpype  # type: ignore[import-not-found]
 
@@ -553,9 +554,9 @@ class PyGhidraCollector:
             logger.debug("Could not read bytes of block %s: %s", block.getName(), e)
             return None
 
-    def _extract_program_metadata(self, program: Any) -> Dict[str, Optional[str]]:
+    def _extract_program_metadata(self, program: Any) -> dict[str, str | None]:
         """Ghidra's 'Program Information' options (compiler, format details, libraries) and source file info."""
-        metadata: Dict[str, Optional[str]] = {}
+        metadata: dict[str, str | None] = {}
         try:
             options = program.getOptions("Program Information")
             for option_name in _iter_java(options.getOptionNames()):

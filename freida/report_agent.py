@@ -5,8 +5,8 @@ lookup tools over the facts file (up to a fixed budget) before it writes a
 structured Behavioral Overview. Every run reports its estimated cost up
 front and its actual cost afterwards.
 
-Usage (after `analyze_syscalls.py <binary>` wrote binary_context.json and binary_facts.json):
-    python -m ghidra_syscall_analyzer.report_agent [--dry-run]
+Usage (after `freida <binary>` wrote binary_context.json and binary_facts.json):
+    freida-report [--dry-run]        (or: python -m freida.report_agent [--dry-run])
 """
 
 from __future__ import annotations
@@ -17,10 +17,10 @@ import logging
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any
 
-from ghidra_syscall_analyzer.agent_tools import FUNCTION_DECLARATIONS, FactsIndex
-from ghidra_syscall_analyzer.gemini_client import (
+from freida.agent_tools import FUNCTION_DECLARATIONS, FactsIndex
+from freida.gemini_client import (
     GeminiClient,
     GeminiError,
     ModelPricing,
@@ -29,7 +29,7 @@ from ghidra_syscall_analyzer.gemini_client import (
     usage_cost,
 )
 
-logger = logging.getLogger("ghidra_syscall_analyzer.report_agent")
+logger = logging.getLogger("freida.report_agent")
 
 DEFAULT_MODEL = "gemini-3.6-flash"
 DEFAULT_MAX_TOOL_CALLS = 3
@@ -53,7 +53,7 @@ CATEGORIES = [
 SEVERITIES = ["info", "low", "medium", "high", "critical"]
 CLASSIFICATIONS = ["benign", "potentially_unwanted", "suspicious", "malicious", "unknown"]
 
-OVERVIEW_SCHEMA: Dict[str, Any] = {
+OVERVIEW_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
         "summary": {"type": "string", "description": "2-4 sentences on what the program does overall."},
@@ -122,7 +122,7 @@ credential theft). Classification reflects the evidence, with confidence to matc
 6. Reply only with JSON matching the response schema."""
 
 
-def prepare_context(context: Dict[str, Any]) -> Dict[str, Any]:
+def prepare_context(context: dict[str, Any]) -> dict[str, Any]:
     """Copy of the context without local paths and bookkeeping the model does not need."""
     prepared = {k: v for k, v in context.items() if k != "exploration"}
     if isinstance(prepared.get("program_metadata"), dict):
@@ -136,7 +136,7 @@ def prepare_context(context: Dict[str, Any]) -> Dict[str, Any]:
     return prepared
 
 
-def build_initial_contents(context: Dict[str, Any]) -> List[Dict[str, Any]]:
+def build_initial_contents(context: dict[str, Any]) -> list[dict[str, Any]]:
     payload = json.dumps(prepare_context(context), separators=(",", ":"), default=str)
     text = (
         "Write the Behavioral Overview for this binary.\n"
@@ -164,7 +164,7 @@ class CostEstimate:
         )
 
 
-def estimate_cost(first_request_tokens: int, max_tool_calls: int, pricing: ModelPricing) -> Dict[str, float]:
+def estimate_cost(first_request_tokens: int, max_tool_calls: int, pricing: ModelPricing) -> dict[str, float]:
     """Cost range: a single answer vs. one tool call per turn up to the budget, then the answer."""
     min_cost = token_cost(first_request_tokens, EST_FINAL_OUTPUT, pricing)
     per_turn_growth = EST_TOOL_TURN_OUTPUT + EST_TOOL_RESULT_INPUT
@@ -177,22 +177,22 @@ def estimate_cost(first_request_tokens: int, max_tool_calls: int, pricing: Model
 @dataclass
 class AgentResult:
     model: str
-    overview: Optional[Dict[str, Any]]
+    overview: dict[str, Any] | None
     raw_text: str
-    finish_reason: Optional[str]
-    turns: List[Dict[str, Any]] = field(default_factory=list)
-    tool_calls: List[Dict[str, Any]] = field(default_factory=list)
-    estimate: Optional[CostEstimate] = None
+    finish_reason: str | None
+    turns: list[dict[str, Any]] = field(default_factory=list)
+    tool_calls: list[dict[str, Any]] = field(default_factory=list)
+    estimate: CostEstimate | None = None
 
     @property
-    def totals(self) -> Dict[str, Any]:
+    def totals(self) -> dict[str, Any]:
         keys = ("input_tokens", "cached_tokens", "output_tokens", "thinking_tokens", "cost_usd")
         totals = {key: sum(turn[key] for turn in self.turns) for key in keys}
         totals["requests"] = len(self.turns)
         totals["tool_calls"] = sum(1 for call in self.tool_calls if not call.get("skipped"))
         return totals
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         result = {
             "model": self.model,
             "overview": self.overview,
@@ -217,11 +217,11 @@ class OverviewAgent:
 
     def __init__(
         self,
-        client: Optional[GeminiClient],
-        context: Dict[str, Any],
-        index: Optional[FactsIndex],
+        client: GeminiClient | None,
+        context: dict[str, Any],
+        index: FactsIndex | None,
         model: str = DEFAULT_MODEL,
-        pricing: Optional[ModelPricing] = None,
+        pricing: ModelPricing | None = None,
         max_tool_calls: int = DEFAULT_MAX_TOOL_CALLS,
         thinking: str = DEFAULT_THINKING,
         max_cost: float = DEFAULT_MAX_COST,
@@ -235,8 +235,8 @@ class OverviewAgent:
         self.thinking = thinking
         self.max_cost = max_cost
 
-    def build_request(self, contents: List[Dict[str, Any]], allow_tools: bool) -> Dict[str, Any]:
-        request: Dict[str, Any] = {
+    def build_request(self, contents: list[dict[str, Any]], allow_tools: bool) -> dict[str, Any]:
+        request: dict[str, Any] = {
             "systemInstruction": {
                 "parts": [{"text": SYSTEM_INSTRUCTION.format(max_tool_calls=self.max_tool_calls)}]
             },
@@ -276,7 +276,7 @@ class OverviewAgent:
             tool_turn_input + EST_TOOL_TURN_OUTPUT + EST_TOOL_RESULT_INPUT, EST_FINAL_OUTPUT, self.pricing
         )
 
-    def run(self, estimate: Optional[CostEstimate] = None) -> AgentResult:
+    def run(self, estimate: CostEstimate | None = None) -> AgentResult:
         if self.client is None:
             raise GeminiError("A Gemini client is required to run the agent.")
 
@@ -324,7 +324,7 @@ class OverviewAgent:
                 else:
                     tool_result = {"error": "Tool call budget exhausted. Answer now with the information you have."}
                     result.tool_calls.append({"name": name, "args": args, "result_bytes": 0, "skipped": True})
-                function_response: Dict[str, Any] = {"name": name, "response": tool_result}
+                function_response: dict[str, Any] = {"name": name, "response": tool_result}
                 if call.get("id"):
                     function_response["id"] = call["id"]
                 response_parts.append({"functionResponse": function_response})
@@ -333,7 +333,7 @@ class OverviewAgent:
         raise GeminiError("The model did not produce a final answer within the allowed turns.")
 
 
-def parse_overview(text: str) -> Optional[Dict[str, Any]]:
+def parse_overview(text: str) -> dict[str, Any] | None:
     """Parses the model's JSON answer; tolerates a fenced ```json block."""
     cleaned = text.strip()
     if cleaned.startswith("```"):
@@ -346,7 +346,7 @@ def parse_overview(text: str) -> Optional[Dict[str, Any]]:
     return parsed if isinstance(parsed, dict) else None
 
 
-def validate_evidence(overview: Dict[str, Any], index: FactsIndex) -> int:
+def validate_evidence(overview: dict[str, Any], index: FactsIndex) -> int:
     """Marks each evidence item verified/unverified against the facts; returns the unverified count."""
     unverified = 0
     for behavior in overview.get("behaviors", []):
@@ -361,7 +361,7 @@ def validate_evidence(overview: Dict[str, Any], index: FactsIndex) -> int:
 SEVERITY_BADGES = {"critical": "🔴 CRITICAL", "high": "🟠 HIGH", "medium": "🟡 MEDIUM", "low": "🟢 LOW", "info": "⚪ INFO"}
 
 
-def render_markdown(result: AgentResult, target: Dict[str, Any]) -> str:
+def render_markdown(result: AgentResult, target: dict[str, Any]) -> str:
     totals = result.totals
     name = target.get("file_name", "binary")
     lines = [f"# Analysis Report: `{name}`", ""]
@@ -433,23 +433,23 @@ def _sibling(context_path: Path, suffix: str) -> Path:
     return context_path.with_name(f"{stem}{suffix}")
 
 
-def write_pdf(output: Dict[str, Any], target: Dict[str, Any], pdf_path: Path) -> Optional[Path]:
+def write_pdf(output: dict[str, Any], target: dict[str, Any], pdf_path: Path) -> Path | None:
     """Writes the PDF version of the overview; returns None when reportlab is missing."""
     try:
-        from ghidra_syscall_analyzer.pdf_report import write_overview_pdf
+        from freida.pdf_report import write_overview_pdf
     except ImportError:
         logger.warning("reportlab is not installed; skipping the PDF report (pip install reportlab).")
         return None
     return write_overview_pdf(output, target, pdf_path)
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="freida-report",
         description="Generate a Behavioral Overview of an analyzed binary with Gemini, reporting estimated and actual cost.",
     )
     parser.add_argument("context", type=Path, nargs="?", default=Path("binary_context.json"),
-                        help="Model context JSON (default: binary_context.json, as written by analyze_syscalls.py).")
+                        help="Model context JSON (default: binary_context.json, as written by `freida`).")
     parser.add_argument("--facts", type=Path,
                         help="Facts JSON for lookup tools (default: the matching *_facts.json, e.g. binary_facts.json).")
     parser.add_argument("-o", "--output", type=Path, help="Markdown report path (default: binary_overview.md).")
@@ -474,7 +474,7 @@ def main(argv: Optional[List[str]] = None) -> int:
                         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%H:%M:%S")
 
     if not args.context.exists():
-        print(f"[!] {args.context} not found. Analyze a binary first: python analyze_syscalls.py /path/to/binary")
+        print(f"[!] {args.context} not found. Analyze a binary first: freida /path/to/binary")
         return 2
 
     try:
@@ -488,7 +488,7 @@ def main(argv: Optional[List[str]] = None) -> int:
 
         pricing = pricing_for(args.model, args.price_in, args.price_cached, args.price_out)
         try:
-            client: Optional[GeminiClient] = GeminiClient()
+            client: GeminiClient | None = GeminiClient()
         except GeminiError:
             if not args.dry_run:
                 raise

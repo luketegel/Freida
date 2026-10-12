@@ -10,9 +10,9 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.pyghidra_collector import PyGhidraCollector
+from freida.pyghidra_collector import PyGhidraCollector
 
-SAMPLES = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples"
+SAMPLES = Path(__file__).resolve().parent.parent / "freida" / "samples"
 
 FAKE_FACTS = {
     "program": {"name": "sample", "language_id": "x86:LE:64:default", "entry_points": ["00101000"]},
@@ -150,7 +150,7 @@ class TestStringExtraction(unittest.TestCase):
         util.DefinedStringIterator = types.SimpleNamespace(forProgram=broken)
 
         with patch.dict(sys.modules, _fake_ghidra_modules(util)):
-            with self.assertLogs("ghidra_syscall_analyzer.pyghidra_collector", level="WARNING"):
+            with self.assertLogs("freida.pyghidra_collector", level="WARNING"):
                 strings = self.collector._extract_strings(_FakeProgram(self.items))
 
         self.assertEqual(strings, [])

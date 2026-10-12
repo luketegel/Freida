@@ -1,13 +1,12 @@
 """Tests for GhidraMCPClient protocol handling."""
 
-import io
 import json
 import threading
 import time
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-from ghidra_syscall_analyzer.mcp_client import GhidraMCPClient, MCPError
+from freida.mcp_client import GhidraMCPClient, MCPError
 
 
 class TestGhidraMCPClient(unittest.TestCase):

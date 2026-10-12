@@ -5,8 +5,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.context_builder import ContextLimits, build_context, build_facts, write_context
-from ghidra_syscall_analyzer.syscall_detector import SyscallDetector
+from freida.context_builder import ContextLimits, build_context, build_facts, write_context
+from freida.syscall_detector import SyscallDetector
 
 
 def make_facts(num_helpers: int = 3, num_strings: int = 5) -> dict:
@@ -95,7 +95,9 @@ class TestContextBuilder(unittest.TestCase):
 
 
 def add_extended_facts(facts: dict) -> dict:
-    ref = lambda fn: [{"function": fn, "at": "00101110", "ref_type": "READ"}]
+    def ref(fn: str) -> list:
+        return [{"function": fn, "at": "00101110", "ref_type": "READ"}]
+
     facts["strings"] = [
         {"address": "00102000", "value": "__TEXT", "referenced_by": []},
         {"address": "00102010", "value": "/bin/sh", "referenced_by": ref("helper_0") + ref("helper_1")},

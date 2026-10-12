@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Convenience launcher script for Ghidra Syscall Analyzer."""
+"""Convenience launcher for the Freida CLI; works from a checkout without installing."""
 
 import sys
-from ghidra_syscall_analyzer.cli import main
+
+from freida.cli import main
 
 if __name__ == "__main__":
     sys.exit(main())

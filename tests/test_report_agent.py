@@ -10,9 +10,9 @@ from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import patch
 
-from ghidra_syscall_analyzer.agent_tools import FactsIndex
-from ghidra_syscall_analyzer.gemini_client import GeminiClient, pricing_for, token_cost
-from ghidra_syscall_analyzer.report_agent import (
+from freida.agent_tools import FactsIndex
+from freida.gemini_client import GeminiClient, pricing_for, token_cost
+from freida.report_agent import (
     EST_FINAL_OUTPUT,
     OverviewAgent,
     build_initial_contents,
@@ -196,7 +196,7 @@ class TestCli(AgentTestCase):
         with tempfile.TemporaryDirectory() as tmp:
             context_path = self.write_inputs(tmp)
             out = io.StringIO()
-            with patch("ghidra_syscall_analyzer.report_agent.GeminiClient",
+            with patch("freida.report_agent.GeminiClient",
                        lambda: GeminiClient(api_key="k", transport=transport)), redirect_stdout(out):
                 code = main([str(context_path)])
 
@@ -221,7 +221,7 @@ class TestCli(AgentTestCase):
             os.chdir(tmp)
             try:
                 out = io.StringIO()
-                with patch("ghidra_syscall_analyzer.report_agent.GeminiClient",
+                with patch("freida.report_agent.GeminiClient",
                            lambda: GeminiClient(api_key="k", transport=transport)), redirect_stdout(out):
                     code = main([])
                 self.assertEqual(code, 0)
@@ -244,7 +244,7 @@ class TestCli(AgentTestCase):
         transport = ScriptedTransport([{"totalTokens": 120_000}])
         with tempfile.TemporaryDirectory() as tmp:
             out = io.StringIO()
-            with patch("ghidra_syscall_analyzer.report_agent.GeminiClient",
+            with patch("freida.report_agent.GeminiClient",
                        lambda: GeminiClient(api_key="k", transport=transport)), redirect_stdout(out):
                 code = main([str(self.write_inputs(tmp)), "--max-cost", "0.10"])
             self.assertEqual(code, 3)

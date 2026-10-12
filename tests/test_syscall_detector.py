@@ -1,7 +1,8 @@
 """Tests for SyscallDetector engine."""
 
 import unittest
-from ghidra_syscall_analyzer.syscall_detector import SyscallDetector
+
+from freida.syscall_detector import SyscallDetector
 
 
 class TestSyscallDetector(unittest.TestCase):

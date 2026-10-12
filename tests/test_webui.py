@@ -1,7 +1,6 @@
 """Tests for the local web UI server."""
 
 import json
-import sys
 import tempfile
 import threading
 import time
@@ -10,7 +9,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from ghidra_syscall_analyzer.webui.server import (
+from freida.webui.server import (
     OptionError,
     analysis_command,
     make_server,
@@ -19,7 +18,7 @@ from ghidra_syscall_analyzer.webui.server import (
     safe_filename,
 )
 
-SAMPLE = Path(__file__).resolve().parent.parent / "ghidra_syscall_analyzer" / "samples" / "sample_binary"
+SAMPLE = Path(__file__).resolve().parent.parent / "freida" / "samples" / "sample_binary"
 
 
 class TestOptions(unittest.TestCase):

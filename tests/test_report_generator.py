@@ -4,8 +4,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from ghidra_syscall_analyzer.report_generator import MarkdownReportGenerator
-from ghidra_syscall_analyzer.syscall_detector import SyscallFinding
+from freida.report_generator import MarkdownReportGenerator
+from freida.syscall_detector import SyscallFinding
 
 
 class TestMarkdownReportGenerator(unittest.TestCase):

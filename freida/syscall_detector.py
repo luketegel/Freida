@@ -10,7 +10,7 @@ from __future__ import annotations
 import collections
 import re
 from dataclasses import asdict, dataclass, replace
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 
 @dataclass
@@ -22,20 +22,20 @@ class SyscallFinding:
     severity: str  # "INFO", "LOW", "MEDIUM", "HIGH", "CRITICAL"
     detection_type: str  # "DIRECT_SYSCALL", "LIBC_WRAPPER", "WINDOWS_NATIVE", "WIN32_API", "MACOS_MACH"
     function_name: str
-    address: Optional[str]
+    address: str | None
     line_number: int
     code_snippet: str
     arguments: str
-    syscall_number: Optional[int] = None
-    target_arch: Optional[str] = None
-    callsite_address: Optional[str] = None  # exact call instruction address, when known
+    syscall_number: int | None = None
+    target_arch: str | None = None
+    callsite_address: str | None = None  # exact call instruction address, when known
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return asdict(self)
 
 
 # Linux x86_64 syscall number mapping for direct syscall(number, ...) resolution
-LINUX_X86_64_SYSCALLS: Dict[int, str] = {
+LINUX_X86_64_SYSCALLS: dict[int, str] = {
     0: "read",
     1: "write",
     2: "open",
@@ -381,7 +381,7 @@ LINUX_X86_64_SYSCALLS: Dict[int, str] = {
 }
 
 # Syscall metadata dictionary: name -> (category, description, severity)
-SYSCALL_CATALOG: Dict[str, Tuple[str, str, str]] = {
+SYSCALL_CATALOG: dict[str, tuple[str, str, str]] = {
     # File I/O
     "read": ("File I/O", "Read from file descriptor", "LOW"),
     "write": ("File I/O", "Write to file descriptor", "LOW"),
@@ -497,7 +497,7 @@ SYSCALL_CATALOG: Dict[str, Tuple[str, str, str]] = {
 }
 
 # Windows Native (NT) Syscalls and Win32 Core APIs
-WINDOWS_SYSCALL_CATALOG: Dict[str, Tuple[str, str, str, str]] = {
+WINDOWS_SYSCALL_CATALOG: dict[str, tuple[str, str, str, str]] = {
     # Name: (category, description, severity, detection_type)
     # Native NT Syscalls
     "NtCreateFile": ("File I/O", "Native NT file creation/open", "MEDIUM", "WINDOWS_NATIVE"),
@@ -550,7 +550,7 @@ WINDOWS_SYSCALL_CATALOG: Dict[str, Tuple[str, str, str, str]] = {
 }
 
 # macOS / Mach Traps
-MACOS_MACH_CATALOG: Dict[str, Tuple[str, str, str]] = {
+MACOS_MACH_CATALOG: dict[str, tuple[str, str, str]] = {
     "mach_msg": ("IPC & Signals", "Mach kernel IPC message exchange", "MEDIUM"),
     "mach_msg_trap": ("IPC & Signals", "Direct Mach trap for kernel communication", "HIGH"),
     "mach_reply_port": ("IPC & Signals", "Allocate Mach port for reply", "LOW"),
@@ -574,7 +574,7 @@ IMPORT_DESCRIPTION_PREFIX = {
 }
 
 
-def _is_x86_64(target_arch: Optional[str]) -> bool:
+def _is_x86_64(target_arch: str | None) -> bool:
     """True for x86-64 Ghidra language IDs; unknown architectures keep the x86-64 default."""
     if not target_arch:
         return True
@@ -582,7 +582,7 @@ def _is_x86_64(target_arch: Optional[str]) -> bool:
     return "x86" in arch and ":64" in arch
 
 
-def _address_key(address: str) -> Tuple[int, Any]:
+def _address_key(address: str) -> tuple[int, Any]:
     try:
         return (0, int(address.split(":")[-1], 16))
     except ValueError:
@@ -644,11 +644,11 @@ class SyscallDetector:
         self,
         function_name: str,
         code: str,
-        entry_address: Optional[str] = None,
-        target_arch: Optional[str] = None,
-    ) -> List[SyscallFinding]:
+        entry_address: str | None = None,
+        target_arch: str | None = None,
+    ) -> list[SyscallFinding]:
         """Scans decompiled C code for system calls and returns findings."""
-        findings: List[SyscallFinding] = []
+        findings: list[SyscallFinding] = []
         lines = code.splitlines()
 
         for idx, line in enumerate(lines, start=1):
@@ -745,7 +745,7 @@ class SyscallDetector:
                     )
 
         # Deduplicate findings on the same line for the same syscall
-        unique_findings: List[SyscallFinding] = []
+        unique_findings: list[SyscallFinding] = []
         seen = set()
         for f in findings:
             key = (f.name, f.line_number, f.code_snippet)
@@ -757,11 +757,11 @@ class SyscallDetector:
 
     def analyze_imports(
         self,
-        imports: List[Dict[str, Any]],
-        target_arch: Optional[str] = None,
-    ) -> List[SyscallFinding]:
+        imports: list[dict[str, Any]],
+        target_arch: str | None = None,
+    ) -> list[SyscallFinding]:
         """Analyzes imported symbols / functions from the binary header."""
-        findings: List[SyscallFinding] = []
+        findings: list[SyscallFinding] = []
 
         for imp in imports:
             name = imp.get("name") or imp.get("symbol") or ""
@@ -789,7 +789,7 @@ class SyscallDetector:
 
         return findings
 
-    def resolve_api(self, raw_name: str) -> Optional[Tuple[str, str, str, str, str]]:
+    def resolve_api(self, raw_name: str) -> tuple[str, str, str, str, str] | None:
         """Maps a symbol to (name, category, description, severity, detection_type) if it is a known API.
 
         Strips namespace/DLL decoration (`KERNEL32.DLL!CreateProcessW`, `lib::open`, `send@16`)
@@ -814,11 +814,11 @@ class SyscallDetector:
     def analyze_callsites(
         self,
         function_name: str,
-        callsites: List[Dict[str, Any]],
-        decompiled_findings: List[SyscallFinding],
-        entry_address: Optional[str] = None,
-        target_arch: Optional[str] = None,
-    ) -> List[SyscallFinding]:
+        callsites: list[dict[str, Any]],
+        decompiled_findings: list[SyscallFinding],
+        entry_address: str | None = None,
+        target_arch: str | None = None,
+    ) -> list[SyscallFinding]:
         """Merges Ghidra callsites into a function's findings so API calls carry exact call addresses.
 
         Callsites are authoritative for which APIs a function calls and where. When the decompiled
@@ -826,14 +826,14 @@ class SyscallDetector:
         address/line order to keep arguments and code lines; otherwise each callsite is reported
         on its own without line details. Decompiled API findings with no callsite are kept.
         """
-        sites_by_api: Dict[str, List[Tuple[str, Tuple[str, str, str, str, str]]]] = collections.defaultdict(list)
+        sites_by_api: dict[str, list[tuple[str, tuple[str, str, str, str, str]]]] = collections.defaultdict(list)
         for site in sorted(callsites, key=lambda c: _address_key(str(c.get("at", "")))):
             resolved = self.resolve_api(str(site.get("to") or ""))
             if resolved and site.get("at"):
                 sites_by_api[resolved[0]].append((str(site["at"]), resolved))
 
-        decompiled_by_api: Dict[str, List[SyscallFinding]] = collections.defaultdict(list)
-        merged: List[SyscallFinding] = []
+        decompiled_by_api: dict[str, list[SyscallFinding]] = collections.defaultdict(list)
+        merged: list[SyscallFinding] = []
         for f in decompiled_findings:
             if f.detection_type in API_DETECTION_TYPES:
                 decompiled_by_api[f.name].append(f)

@@ -16,8 +16,9 @@ import collections
 import math
 import re
 import struct
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Union
+from typing import Any
 
 # ---------------------------------------------------------------------------
 # Entropy
@@ -42,7 +43,7 @@ _TLDS = (
     "ru|cn|su|tk|cc|uk|de|fr|jp|kr|br|in|us|eu|nl|it|es|pl|ir|onion"
 )
 
-INDICATOR_PATTERNS: Dict[str, "re.Pattern[str]"] = {
+INDICATOR_PATTERNS: dict[str, re.Pattern[str]] = {
     "url": re.compile(r"\b(?:https?|ftp|wss?)://[^\s\"'<>]+", re.IGNORECASE),
     "email": re.compile(r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b"),
     "ipv4": re.compile(r"(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])"),
@@ -64,17 +65,17 @@ COMMAND_MARKERS = (
 MAX_INDICATOR_LENGTH = 200
 
 
-def _function_names(referenced_by: Iterable[Any]) -> List[str]:
+def _function_names(referenced_by: Iterable[Any]) -> list[str]:
     names = {r["function"] if isinstance(r, dict) else str(r) for r in referenced_by or []}
     return sorted(n for n in names if n)
 
 
-def extract_indicators(strings: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+def extract_indicators(strings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Pulls network, filesystem, registry and command indicators out of collected strings."""
-    indicators: List[Dict[str, Any]] = []
+    indicators: list[dict[str, Any]] = []
     seen = set()
 
-    def add(kind: str, value: str, s: Dict[str, Any]) -> None:
+    def add(kind: str, value: str, s: dict[str, Any]) -> None:
         value = value.strip()[:MAX_INDICATOR_LENGTH]
         key = (kind, value, s.get("address"))
         if key in seen:
@@ -123,19 +124,19 @@ METADATA_SECTIONS = {
 }
 
 
-def _int_address(address: Any) -> Optional[int]:
+def _int_address(address: Any) -> int | None:
     try:
         return int(str(address).split(":")[-1], 16)
     except ValueError:
         return None
 
 
-def _type_category(path: Optional[str]) -> str:
+def _type_category(path: str | None) -> str:
     parts = str(path or "").strip("/").split("/")
     return parts[0] if len(parts) > 1 else ""
 
 
-def classify_origins(facts: Dict[str, Any]) -> Dict[str, int]:
+def classify_origins(facts: dict[str, Any]) -> dict[str, int]:
     """Tags data types, globals and strings with origin "file_format" or "program".
 
     File-format items describe the executable's own layout (load commands, symbol
@@ -166,7 +167,7 @@ def classify_origins(facts: Dict[str, Any]) -> Dict[str, int]:
     # which also covers strings stored just past a structure, like a dylib_command's library path.
     blocks = [(_int_address(b.get("start")), _int_address(b.get("end"))) for b in facts.get("memory_map", [])]
 
-    def block_of(address: Optional[int]) -> Optional[int]:
+    def block_of(address: int | None) -> int | None:
         if address is None:
             return None
         for index, (start, end) in enumerate(blocks):
@@ -204,9 +205,9 @@ def classify_origins(facts: Dict[str, Any]) -> Dict[str, int]:
 # ---------------------------------------------------------------------------
 
 
-def callers_by_function(functions: List[Dict[str, Any]]) -> Dict[str, List[str]]:
+def callers_by_function(functions: list[dict[str, Any]]) -> dict[str, list[str]]:
     """Reverse call graph: callee name -> sorted names of functions that call it."""
-    callers: Dict[str, set] = collections.defaultdict(set)
+    callers: dict[str, set] = collections.defaultdict(set)
     for fn in functions:
         for site in fn.get("callsites") or []:
             if site.get("to"):
@@ -243,7 +244,7 @@ IMAGE_DLLCHARACTERISTICS_GUARD_CF = 0x4000
 STACK_CANARY_SYMBOLS = {"stack_chk_fail", "stack_chk_guard", "security_check_cookie", "security_cookie"}
 
 
-def _elf_hardening(data: bytes) -> Dict[str, Any]:
+def _elf_hardening(data: bytes) -> dict[str, Any]:
     is64 = data[4] == 2
     endian = "<" if data[5] == 1 else ">"
     e_type = struct.unpack_from(endian + "H", data, 16)[0]
@@ -295,7 +296,7 @@ def _elf_hardening(data: bytes) -> Dict[str, Any]:
     }
 
 
-def _macho_hardening(data: bytes) -> Dict[str, Any]:
+def _macho_hardening(data: bytes) -> dict[str, Any]:
     magic = data[:4]
     if magic == b"\xca\xfe\xba\xbe":
         # Universal binary: report the first architecture slice.
@@ -318,7 +319,7 @@ def _macho_hardening(data: bytes) -> Dict[str, Any]:
     }
 
 
-def _pe_hardening(data: bytes) -> Dict[str, Any]:
+def _pe_hardening(data: bytes) -> dict[str, Any]:
     e_lfanew = struct.unpack_from("<I", data, 0x3C)[0]
     if data[e_lfanew:e_lfanew + 4] != b"PE\x00\x00":
         return {"format": "PE"}
@@ -333,7 +334,7 @@ def _pe_hardening(data: bytes) -> Dict[str, Any]:
     }
 
 
-def header_hardening(target_path: Union[str, Path]) -> Dict[str, Any]:
+def header_hardening(target_path: str | Path) -> dict[str, Any]:
     """Parses PIE / NX / RELRO style flags from the executable header; unknown values are None."""
     try:
         data = Path(target_path).read_bytes()
@@ -349,7 +350,7 @@ def header_hardening(target_path: Union[str, Path]) -> Dict[str, Any]:
     return {"format": None, "pie": None, "nx": None, "relro": None}
 
 
-def hardening(target_path: Union[str, Path], facts: Dict[str, Any]) -> Dict[str, Any]:
+def hardening(target_path: str | Path, facts: dict[str, Any]) -> dict[str, Any]:
     """Combines header flags with signals from Ghidra facts (canary, FORTIFY, RWX, stripped)."""
     result = header_hardening(target_path)
 
