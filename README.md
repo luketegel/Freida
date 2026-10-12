@@ -1,4 +1,4 @@
-# 🛡️ Freida Malware Analysis Tool (Headless MCP)
+# 🛡️ Freida Malware Analysis Tool
 
 A robust Python-based security tool that takes in a **native executable** (ELF, PE, Mach-O), decompiles it with **headless Ghidra** (strictly no GUI), analyzes all functions and imported symbols for **system calls**, and generates a structured, GitHub-flavored **Markdown report** and a matching **PDF report**, plus a **model context bundle** (JSON) for AI-driven analysis.
 
